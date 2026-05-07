@@ -1,0 +1,10 @@
+{
+  "name": "campo-base",
+  "private": true,
+  "version": "1.0.0",
+  "description": "CampoBase - Sports Management Platform",
+  "scripts": {
+    "dev": "pnpm -r dev",
+    "build": "pnpm -r build"
+  }
+}

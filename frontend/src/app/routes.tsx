@@ -1,0 +1,69 @@
+import { createBrowserRouter } from "react-router";
+import LandingPage from "./pages/LandingPage";
+import LoginPage from "./pages/LoginPage";
+import RegisterPage from "./pages/RegisterPage";
+import PlayerInvitationPage from "./pages/PlayerInvitationPage";
+import CapitaDashboard from "./pages/capita/CapitaDashboard";
+import CapitaDocuments from "./pages/capita/CapitaDocuments";
+import CapitaInscription from "./pages/capita/CapitaInscription";
+import JugadorDashboard from "./pages/jugador/JugadorDashboard";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminInscriptions from "./pages/admin/AdminInscriptions";
+import AdminConfigurator from "./pages/admin/AdminConfigurator";
+import ArbitreMatches from "./pages/arbitre/ArbitreMatches";
+import NotFoundPage from "./pages/NotFoundPage";
+
+export const router = createBrowserRouter([
+  {
+    path: "/",
+    Component: LandingPage,
+  },
+  {
+    path: "/login",
+    Component: LoginPage,
+  },
+  {
+    path: "/register",
+    Component: RegisterPage,
+  },
+  {
+    path: "/invite/:token",
+    Component: PlayerInvitationPage,
+  },
+  {
+    path: "/dashboard",
+    Component: CapitaDashboard,
+  },
+  {
+    path: "/documents",
+    Component: CapitaDocuments,
+  },
+  {
+    path: "/inscription",
+    Component: CapitaInscription,
+  },
+  {
+    path: "/jugador/dashboard",
+    Component: JugadorDashboard,
+  },
+  {
+    path: "/admin",
+    Component: AdminDashboard,
+  },
+  {
+    path: "/admin/inscriptions",
+    Component: AdminInscriptions,
+  },
+  {
+    path: "/admin/configurator",
+    Component: AdminConfigurator,
+  },
+  {
+    path: "/arbitre/partits",
+    Component: ArbitreMatches,
+  },
+  {
+    path: "*",
+    Component: NotFoundPage,
+  },
+]);
