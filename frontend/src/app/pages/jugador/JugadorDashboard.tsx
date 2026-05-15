@@ -50,16 +50,21 @@ export default function JugadorDashboard() {
         // API calls to get player dashboard data
         const response = await fetch('/api/jugador/dashboard');
         if (response.ok) {
-          const data = await response.json();
-          setUpcomingMatches(data.upcomingMatches || []);
-          setRecentMatches(data.recentMatches || []);
-          setPersonalStats(data.personalStats || {
-            goals: 0,
-            assists: 0,
-            matchesPlayed: 0,
-            yellowCards: 0,
-            redCards: 0,
-          });
+          const contentType = response.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const data = await response.json();
+            setUpcomingMatches(data.upcomingMatches || []);
+            setRecentMatches(data.recentMatches || []);
+            setPersonalStats(data.personalStats || {
+              goals: 0,
+              assists: 0,
+              matchesPlayed: 0,
+              yellowCards: 0,
+              redCards: 0,
+            });
+          } else {
+            console.error('Invalid response from server');
+          }
         } else if (response.status !== 404) {
           throw new Error('Failed to fetch dashboard data');
         }
@@ -216,103 +221,3 @@ export default function JugadorDashboard() {
   );
 }
 
-  return (
-    <div className="flex min-h-screen bg-[#F1EFE8]">
-      <Sidebar role="jugador" />
-      <main className="flex-1 p-8">
-        <div className="max-w-7xl mx-auto">
-          <h1 className="mb-8">Dashboard</h1>
-
-          {/* Metric Cards */}
-          <div className="grid grid-cols-3 gap-6 mb-8">
-            <MetricCard label="Partits jugats" value={personalStats.matchesPlayed} subtitle="Temporada 2026" />
-            <MetricCard label="Proper partit" value="10 Maig" subtitle="18:00 · Pista 1" />
-            <MetricCard
-              label="Estadístiques"
-              value={`${personalStats.goals}G / ${personalStats.assists}A`}
-              subtitle="Gols i assistències"
-            />
-          </div>
-
-          {/* Two Column Layout */}
-          <div className="grid grid-cols-2 gap-6 mb-8">
-            {/* Upcoming Matches */}
-            <Card>
-              <h3 className="mb-6">Pròxims partits</h3>
-              <div className="space-y-4">
-                {upcomingMatches.map((match, i) => (
-                  <div key={i} className="p-4 bg-[#F1EFE8] rounded-lg">
-                    <div className="flex items-start justify-between mb-2">
-                      <div>
-                        <p className="font-medium text-[#2C2C2A]">vs {match.opponent}</p>
-                        <p className="text-[13px] text-[#5F5E5A]">
-                          {match.date} · {match.time}
-                        </p>
-                        <p className="text-[13px] text-[#5F5E5A]">{match.court}</p>
-                      </div>
-                      <Badge variant={match.status === 'confirmed' ? 'approved' : 'pending'}>
-                        {match.status === 'confirmed' ? 'Confirmat' : 'Pendent'}
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </Card>
-
-            {/* Personal Stats */}
-            <Card>
-              <h3 className="mb-6">Estadístiques personals</h3>
-              <div className="grid grid-cols-2 gap-6">
-                <div className="p-4 bg-[#F1EFE8] rounded-lg text-center">
-                  <p className="text-[32px] font-medium text-[#D85A30]">{personalStats.goals}</p>
-                  <p className="text-[13px] text-[#5F5E5A]">Gols</p>
-                </div>
-                <div className="p-4 bg-[#F1EFE8] rounded-lg text-center">
-                  <p className="text-[32px] font-medium text-[#D85A30]">{personalStats.assists}</p>
-                  <p className="text-[13px] text-[#5F5E5A]">Assistències</p>
-                </div>
-                <div className="p-4 bg-[#F1EFE8] rounded-lg text-center">
-                  <p className="text-[32px] font-medium text-[#854F0B]">{personalStats.yellowCards}</p>
-                  <p className="text-[13px] text-[#5F5E5A]">Targetes grogues</p>
-                </div>
-                <div className="p-4 bg-[#F1EFE8] rounded-lg text-center">
-                  <p className="text-[32px] font-medium text-[#A32D2D]">{personalStats.redCards}</p>
-                  <p className="text-[13px] text-[#5F5E5A]">Targetes vermelles</p>
-                </div>
-              </div>
-            </Card>
-          </div>
-
-          {/* Recent Match Results */}
-          <Card>
-            <h3 className="mb-6">Resultats recents</h3>
-            <div className="space-y-4">
-              {recentMatches.map((match, i) => (
-                <div key={i} className="p-4 bg-[#F1EFE8] rounded-lg flex items-center justify-between">
-                  <div>
-                    <p className="font-medium text-[#2C2C2A]">vs {match.opponent}</p>
-                    <p className="text-[13px] text-[#5F5E5A]">{match.date}</p>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <p className="text-[22px] font-medium text-[#2C2C2A]">{match.result}</p>
-                    <Badge
-                      variant={
-                        match.won === true ? 'approved' : match.won === false ? 'rejected' : 'pending'
-                      }
-                    >
-                      {match.won === true ? 'Victòria' : match.won === false ? 'Derrota' : 'Empat'}
-                    </Badge>
-                    <Button variant="ghost" className="flex items-center gap-2">
-                      <FileText size={16} />
-                      Veure acta
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
-        </div>
-      </main>
-    </div>
-  );
-}

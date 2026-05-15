@@ -25,8 +25,13 @@ export default function CapitaNotifications() {
         if (!response.ok && response.status !== 404) {
           throw new Error('Failed to fetch notifications');
         }
-        const data = await response.json();
-        setNotifications(data.notifications || []);
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const data = await response.json();
+          setNotifications(data.notifications || []);
+        } else {
+          throw new Error('Invalid response from server');
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Error loading notifications');
         setNotifications([]);

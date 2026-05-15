@@ -28,8 +28,13 @@ export default function CapitaDocuments() {
         if (!response.ok && response.status !== 404) {
           throw new Error('Failed to fetch documents');
         }
-        const data = await response.json();
-        setPlayers(data.players || []);
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const data = await response.json();
+          setPlayers(data.players || []);
+        } else {
+          throw new Error('Invalid response from server');
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Error loading documents');
         setPlayers([]);

@@ -51,9 +51,14 @@ export default function CapitaDashboard() {
         // For now, we initialize with empty/null values
         const response = await fetch('/api/dashboard');
         if (response.ok) {
-          const data = await response.json();
-          setStats(data.stats || stats);
-          setInscriptionSteps(data.inscriptionSteps || inscriptionSteps);
+          const contentType = response.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const data = await response.json();
+            setStats(data.stats || stats);
+            setInscriptionSteps(data.inscriptionSteps || inscriptionSteps);
+          } else {
+            console.error('Invalid response from server');
+          }
         }
       } catch (err) {
         console.error('Error fetching dashboard:', err);

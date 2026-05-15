@@ -29,9 +29,14 @@ export default function LandingPage() {
         // API call to get public tournament matches would go here
         const response = await fetch('/api/public/matches');
         if (response.ok) {
-          const data = await response.json();
-          setMatches(data.upcomingMatches || []);
-          setResults(data.results || []);
+          const contentType = response.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const data = await response.json();
+            setMatches(data.upcomingMatches || []);
+            setResults(data.results || []);
+          } else {
+            console.error('Invalid response from server');
+          }
         }
       } catch (err) {
         console.error('Error loading tournament data:', err);

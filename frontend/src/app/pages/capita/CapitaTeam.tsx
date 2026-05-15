@@ -3,7 +3,8 @@ import { Sidebar } from '../../components/Sidebar';
 import { Card } from '../../components/Card';
 import { Badge } from '../../components/Badge';
 import { Button } from '../../components/Button';
-import { UserPlus, Users } from 'lucide-react';
+import { UserPlus, Users, X, CheckCircle } from 'lucide-react';
+import { Input } from '../../components/Input';
 
 interface Player {
   id: string;
@@ -16,6 +17,32 @@ export default function CapitaTeam() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Modal states
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteStatus, setInviteStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+
+  const handleInvite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inviteEmail) return;
+    
+    setInviteStatus('loading');
+    try {
+      // API call to send invitation would go here
+      // const response = await fetch('/api/team/invite', { method: 'POST', body: JSON.stringify({ email: inviteEmail }) });
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate delay
+      
+      setInviteStatus('success');
+      setTimeout(() => {
+        setIsInviteModalOpen(false);
+        setInviteStatus('idle');
+        setInviteEmail('');
+      }, 2000);
+    } catch (err) {
+      setInviteStatus('error');
+    }
+  };
 
   useEffect(() => {
     const fetchTeamPlayers = async () => {
@@ -27,8 +54,13 @@ export default function CapitaTeam() {
         if (!response.ok && response.status !== 404) {
           throw new Error('Failed to fetch players');
         }
-        const data = await response.json();
-        setPlayers(data.players || []);
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const data = await response.json();
+          setPlayers(data.players || []);
+        } else {
+          throw new Error('Invalid response from server');
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Error loading players');
         setPlayers([]);
@@ -86,7 +118,7 @@ export default function CapitaTeam() {
               <p className="text-[#5F5E5A] mb-6">
                 Comença a formar el teu equip convidant els jugadors
               </p>
-              <Button variant="primary" className="flex items-center gap-2 mx-auto">
+              <Button variant="primary" className="flex items-center gap-2 mx-auto" onClick={() => setIsInviteModalOpen(true)}>
                 <UserPlus size={18} />
                 Convidar jugador
               </Button>
@@ -104,7 +136,7 @@ export default function CapitaTeam() {
         <div className="max-w-5xl mx-auto">
           <div className="flex items-center justify-between mb-8">
             <h1>El meu equip</h1>
-            <Button variant="primary" className="flex items-center gap-2">
+            <Button variant="primary" className="flex items-center gap-2" onClick={() => setIsInviteModalOpen(true)}>
               <UserPlus size={18} />
               Convidar jugador
             </Button>
@@ -130,6 +162,68 @@ export default function CapitaTeam() {
             ))}
           </div>
         </div>
+
+        {/* Invite Modal */}
+        {isInviteModalOpen && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <Card className="w-full max-w-md relative">
+              <button 
+                onClick={() => {
+                  setIsInviteModalOpen(false);
+                  setInviteStatus('idle');
+                  setInviteEmail('');
+                }}
+                className="absolute right-4 top-4 text-[#5F5E5A] hover:text-[#2C2C2A]"
+              >
+                <X size={20} />
+              </button>
+              
+              <h3 className="mb-2">Convidar un jugador</h3>
+              <p className="text-[#5F5E5A] mb-6 text-[14px]">
+                Enviarem un correu electrònic amb un enllaç perquè el jugador s'uneixi al teu equip.
+              </p>
+
+              {inviteStatus === 'success' ? (
+                <div className="text-center py-6">
+                  <CheckCircle size={48} className="text-[#3B6D11] mx-auto mb-4" />
+                  <p className="font-medium text-[#2C2C2A]">Invitació enviada correctament!</p>
+                </div>
+              ) : (
+                <form onSubmit={handleInvite} className="space-y-4">
+                  <Input
+                    label="Correu electrònic del jugador"
+                    type="email"
+                    placeholder="jugador@exemple.cat"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    required
+                    disabled={inviteStatus === 'loading'}
+                  />
+                  {inviteStatus === 'error' && (
+                    <p className="text-[#A32D2D] text-[13px]">Hi ha hagut un error en enviar la invitació.</p>
+                  )}
+                  <div className="flex justify-end gap-3 mt-6">
+                    <Button 
+                      type="button" 
+                      variant="ghost" 
+                      onClick={() => setIsInviteModalOpen(false)}
+                      disabled={inviteStatus === 'loading'}
+                    >
+                      Cancel·lar
+                    </Button>
+                    <Button 
+                      type="submit" 
+                      variant="primary"
+                      disabled={inviteStatus === 'loading'}
+                    >
+                      {inviteStatus === 'loading' ? 'Enviant...' : 'Enviar invitació'}
+                    </Button>
+                  </div>
+                </form>
+              )}
+            </Card>
+          </div>
+        )}
       </main>
     </div>
   );

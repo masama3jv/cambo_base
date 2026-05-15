@@ -1,7 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router';
 import { Home, Users, FileText, ClipboardList, Calendar, BarChart3, Bell, Settings, LogOut } from 'lucide-react';
-import { useContext } from 'react';
-import { AuthContext } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext';
 
 interface SidebarProps {
   role: 'capita' | 'jugador' | 'admin' | 'arbitre';
@@ -10,13 +9,7 @@ interface SidebarProps {
 export function Sidebar({ role }: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  const authContext = useContext(AuthContext);
-
-  if (!authContext) {
-    throw new Error('AuthContext must be used within AuthProvider');
-  }
-
-  const { user, logout } = authContext;
+  const { user, logout } = useAuth();
 
   const capitaLinks = [
     { path: '/dashboard', label: 'Dashboard', icon: Home },

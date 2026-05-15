@@ -26,8 +26,13 @@ export default function CapitaStatistics() {
         if (!response.ok && response.status !== 404) {
           throw new Error('Failed to fetch statistics');
         }
-        const data = await response.json();
-        setStats(data.statistics || null);
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const data = await response.json();
+          setStats(data.statistics || null);
+        } else {
+          throw new Error('Invalid response from server');
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Error loading statistics');
         setStats(null);

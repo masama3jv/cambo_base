@@ -7,7 +7,7 @@ import { useAuth } from '../context/AuthContext';
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const { login, isLoading, user } = useAuth();
+  const { login, isLoading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -17,12 +17,14 @@ export default function LoginPage() {
     setError('');
 
     try {
-      await login(email, password);
-      // Redirect based on role
-      if (user?.role === 'admin') {
+      const role = await login(email, password);
+      // Redirect based on role returned directly from login
+      if (role === 'admin') {
         navigate('/admin');
-      } else if (user?.role === 'arbitre') {
+      } else if (role === 'arbitre') {
         navigate('/arbitre/partits');
+      } else if (role === 'jugador') {
+        navigate('/jugador/dashboard');
       } else {
         navigate('/dashboard');
       }
@@ -30,6 +32,7 @@ export default function LoginPage() {
       setError(err instanceof Error ? err.message : 'Error en l\'accés');
     }
   };
+
 
   return (
     <div className="min-h-screen bg-[#F1EFE8] flex items-center justify-center p-8">
