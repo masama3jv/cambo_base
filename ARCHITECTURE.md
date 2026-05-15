@@ -91,6 +91,65 @@ CampoBase/
   - Input: `Authorization: Bearer <token>`
   - Output: `{ valid, user }`
 
+#### Invitaciones de Jugadores
+- **GET** `/api/invitations/{token}`
+  - Output: `{ invitation: { email, teamName, captainName } }`
+
+- **POST** `/api/auth/register-invited-player`
+  - Input: `{ name, password, confirmPassword, token }`
+  - Output: `{ message, userId, token }`
+
+#### Dashboard Capita
+- **GET** `/api/dashboard`
+  - Output: `{ stats, inscription }`
+
+- **GET** `/api/team/players`
+  - Output: `{ players: Array }`
+
+- **GET** `/api/team/matches`
+  - Output: `{ matches: Array }`
+
+- **GET** `/api/team/statistics`
+  - Output: `{ statistics }`
+
+- **GET** `/api/team/documents`
+  - Output: `{ documents: Array }`
+
+- **GET** `/api/team/inscription-data`
+  - Output: `{ team: { name, players, totalCost } }`
+
+- **GET** `/api/notifications`
+  - Output: `{ notifications: Array }`
+
+#### Dashboard Jugador
+- **GET** `/api/jugador/dashboard`
+  - Output: `{ upcomingMatches, recentMatches, personalStats }`
+
+#### Dashboard Admin
+- **GET** `/api/admin/dashboard`
+  - Output: `{ stats: { totalTeams, pendingValidations, scheduledMatches, activeCourts }, pendingTeams }`
+
+- **GET** `/api/admin/inscriptions`
+  - Output: `{ teams: Array }`
+
+- **POST** `/api/admin/inscriptions/{teamId}/approve-document`
+  - Input: `{ playerName, docType }`
+
+- **POST** `/api/admin/inscriptions/{teamId}/reject-document`
+  - Input: `{ playerName, docType, reason }`
+
+- **POST** `/api/admin/generate-calendar`
+  - Input: `{ numCourts, courts, format, teamsPerGroup, winPoints, drawPoints, lossPoints, matchDuration, breakBetween }`
+  - Output: `{ matches: Array }`
+
+#### Dashboard Arbitre
+- **GET** `/api/arbitre/match`
+  - Output: `{ match }`
+
+#### Datos Públicos
+- **GET** `/api/public/matches`
+  - Output: `{ matches: Array, results: Array }`
+
 #### Health Check
 - **GET** `/api/health`
   - Output: `{ status, timestamp }`
@@ -302,7 +361,55 @@ NODE_ENV=development           # Entorno (development/production)
 
 ---
 
-## 🔄 Comunicación Frontend-Backend
+## � Patrón de API Calls en Frontend
+
+### Patrón estándar para páginas:
+```typescript
+// 1. Definir interfaces TypeScript para datos
+interface DashboardData {
+  stats: { totalTeams, pendingValidations, ... }
+  pendingTeams: PendingTeam[]
+}
+
+// 2. Estado local
+const [data, setData] = useState<DashboardData | null>(null)
+const [isLoading, setIsLoading] = useState(true)
+const [error, setError] = useState<string | null>(null)
+
+// 3. Fetch en useEffect
+useEffect(() => {
+  const fetchData = async () => {
+    try {
+      const response = await fetch('/api/admin/dashboard')
+      if (response.ok) {
+        setData(await response.json())
+      }
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+  fetchData()
+}, [])
+
+// 4. Renderizado condicional
+if (isLoading) return <div>Carregant...</div>
+if (error) return <Card>Error: {error}</Card>
+if (!data) return <Card>No hi ha dades</Card>
+return <div>{/* mostrar datos */}</div>
+```
+
+### Reglas:
+- **Sin datos hardcoded**: Todos los datos vienen de API
+- **Loading states**: Mostrar "Carregant..." durante peticiones
+- **Error handling**: Mostrar error y botón para reintentar
+- **Empty states**: Mensajes amables en Catalan cuando no hay datos
+- **TypeScript**: Todas las respuestas de API deben tener interfaces
+
+---
+
+## �🔄 Comunicación Frontend-Backend
 
 ### Headers requeridos:
 ```javascript
@@ -350,16 +457,32 @@ curl http://localhost:3001/api/health
 
 ---
 
-## 📚 Próximos pasos
+## 📚 Estado del Proyecto
 
-- [ ] Conectar RegisterPage al endpoint `/api/auth/register`
-- [ ] Conectar LoginPage al endpoint `/api/auth/login`
-- [ ] Guardar JWT en localStorage
-- [ ] Proteger rutas con verificación de token
-- [ ] Crear endpoints adicionales (teams, matches, etc.)
+### ✅ Completado
+- [x] Conectar RegisterPage al endpoint `/api/auth/register`
+- [x] Conectar LoginPage al endpoint `/api/auth/login`
+- [x] Guardar JWT en localStorage
+- [x] Proteger rutas con verificación de token
+- [x] Crear endpoints de autenticación (auth)
+- [x] Eliminar todas las datas hardcoded del frontend
+- [x] Implementar API calls en todas las páginas
+- [x] Agregar loading states en todas las páginas
+- [x] Agregar error handling en todas las páginas
+- [x] Agregar empty states en Catalan
+- [x] Implementar AuthContext para gestionar usuario
+- [x] Integrar datos de usuario en Sidebar
+
+### 🔄 En progreso / Próximos pasos
 - [ ] Implementar refresh tokens
 - [ ] Agregar email verification
 - [ ] Configurar upload de documentos
+- [ ] Crear endpoints de capitán (team management)
+- [ ] Crear endpoints de admin (tournament management)
+- [ ] Crear endpoints de arbitre (match management)
+- [ ] Implementar notificaciones en tiempo real (WebSockets)
+- [ ] Agregar validación de datos en backend
+- [ ] Implementar rate limiting
 
 ---
 
@@ -369,3 +492,21 @@ curl http://localhost:3001/api/health
 - **CORS Error**: Si tienes problemas, revisa que frontend está en puerto 5173 y backend en 3001
 - **MySQL Error**: Asegúrate de que WAMP está corriendo y MySQL está activo
 - **Contraseñas**: Nunca stores en plain text - siempre usa bcrypt
+- **API Debugging**: Usa el navegador (DevTools → Network) para ver qué endpoints se llaman
+- **Empty States**: Son mensajes en Catalan que se muestran cuando no hay datos (ej: "No hi ha partits programats")
+- **Loading States**: Todas las páginas muestran "Carregant..." mientras se cargan los datos
+- **Error Handling**: Si falla una petición, se muestra un card rojo con el error y un botó "Reintentar"
+
+## 📅 Cambios Recientes
+
+### Session Anterior (Database Updates)
+- Actualizadas tablas en schema.sql para soportar nuevos campos
+- Agregadas tablas para invitations, notifications, etc.
+
+### Session Actual (Frontend Cleanup + API Integration)
+- Removidas todas las datas hardcoded del frontend
+- Agregados 18+ nuevos endpoints de API
+- Implementado patrón estándar de API calls en todas las páginas
+- Agregados proper loading, error, y empty states
+- Integrado AuthContext para manejo de usuario
+- Actualizado Sidebar para mostrar datos reales del usuario

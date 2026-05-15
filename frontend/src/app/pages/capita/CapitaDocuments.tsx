@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { Sidebar } from '../../components/Sidebar';
 import { Card } from '../../components/Card';
@@ -6,39 +6,75 @@ import { Badge } from '../../components/Badge';
 import { Button } from '../../components/Button';
 import { Upload, CheckCircle, XCircle } from 'lucide-react';
 
+interface PlayerDocument {
+  playerId: string;
+  name: string;
+  dni: { uploaded: boolean; status: 'approved' | 'pending' | 'rejected'; fileName: string };
+  insurance: { uploaded: boolean; status: 'approved' | 'pending' | 'rejected'; fileName: string; rejectionReason?: string };
+}
+
 export default function CapitaDocuments() {
   const navigate = useNavigate();
-  const [players] = useState([
-    {
-      name: 'Joan Garcia',
-      dni: { uploaded: true, status: 'approved' as const, fileName: 'dni_joan.pdf' },
-      insurance: { uploaded: true, status: 'approved' as const, fileName: 'asseguranca_joan.pdf' },
-    },
-    {
-      name: 'Marc López',
-      dni: { uploaded: true, status: 'approved' as const, fileName: 'dni_marc.pdf' },
-      insurance: { uploaded: true, status: 'approved' as const, fileName: 'asseguranca_marc.pdf' },
-    },
-    {
-      name: 'Pau Martí',
-      dni: { uploaded: true, status: 'pending' as const, fileName: 'dni_pau.pdf' },
-      insurance: { uploaded: true, status: 'pending' as const, fileName: 'asseguranca_pau.pdf' },
-    },
-    {
-      name: 'David Soler',
-      dni: { uploaded: true, status: 'approved' as const, fileName: 'dni_david.pdf' },
-      insurance: {
-        uploaded: true,
-        status: 'rejected' as const,
-        fileName: 'asseguranca_david.pdf',
-        rejectionReason: 'El document està caducat. Si us plau, puja una assegurança vàlida.',
-      },
-    },
-  ]);
+  const [players, setPlayers] = useState<PlayerDocument[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const allDocsUploaded = players.every(
+  useEffect(() => {
+    const fetchPlayerDocuments = async () => {
+      try {
+        setIsLoading(true);
+        // API call to get player documents would go here
+        const response = await fetch('/api/team/documents');
+        if (!response.ok && response.status !== 404) {
+          throw new Error('Failed to fetch documents');
+        }
+        const data = await response.json();
+        setPlayers(data.players || []);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Error loading documents');
+        setPlayers([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchPlayerDocuments();
+  }, []);
+
+  const allDocsUploaded = players.length > 0 && players.every(
     (p) => p.dni.uploaded && p.insurance.uploaded
   );
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen bg-[#F1EFE8]">
+        <Sidebar role="capita" />
+        <main className="flex-1 p-8">
+          <div className="max-w-5xl mx-auto">
+            <p className="text-[#5F5E5A]">Carregant...</p>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex min-h-screen bg-[#F1EFE8]">
+        <Sidebar role="capita" />
+        <main className="flex-1 p-8">
+          <div className="max-w-5xl mx-auto">
+            <Card className="p-6 text-center">
+              <p className="text-[#A32D2D]">Error: {error}</p>
+              <Button variant="primary" className="mt-4" onClick={() => window.location.reload()}>
+                Reintentar
+              </Button>
+            </Card>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen bg-[#F1EFE8]">
@@ -51,8 +87,8 @@ export default function CapitaDocuments() {
           </p>
 
           <div className="space-y-6">
-            {players.map((player, i) => (
-              <Card key={i}>
+            {players.map((player) => (
+              <Card key={player.playerId}>
                 <h3 className="mb-6">{player.name}</h3>
                 <div className="grid grid-cols-2 gap-6">
                   {/* DNI Upload */}

@@ -1,5 +1,7 @@
-import { Link, useLocation } from 'react-router';
+import { Link, useLocation, useNavigate } from 'react-router';
 import { Home, Users, FileText, ClipboardList, Calendar, BarChart3, Bell, Settings, LogOut } from 'lucide-react';
+import { useContext } from 'react';
+import { AuthContext } from '../context/AuthContext';
 
 interface SidebarProps {
   role: 'capita' | 'jugador' | 'admin' | 'arbitre';
@@ -7,6 +9,14 @@ interface SidebarProps {
 
 export function Sidebar({ role }: SidebarProps) {
   const location = useLocation();
+  const navigate = useNavigate();
+  const authContext = useContext(AuthContext);
+
+  if (!authContext) {
+    throw new Error('AuthContext must be used within AuthProvider');
+  }
+
+  const { user, logout } = authContext;
 
   const capitaLinks = [
     { path: '/dashboard', label: 'Dashboard', icon: Home },
@@ -43,6 +53,34 @@ export function Sidebar({ role }: SidebarProps) {
                 role === 'admin' ? adminLinks :
                 arbitreLinks;
 
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+  };
+
+  // Get initials from email
+  const getInitials = (email: string) => {
+    const parts = email.split('@')[0].split('.');
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return email.substring(0, 2).toUpperCase();
+  };
+
+  // Get display name from email
+  const getDisplayName = (email: string) => {
+    const namePart = email.split('@')[0];
+    const parts = namePart.split('.');
+    if (parts.length >= 2) {
+      return (parts[0].charAt(0).toUpperCase() + parts[0].slice(1) + ' ' + 
+              parts[1].charAt(0).toUpperCase() + parts[1].slice(1));
+    }
+    return email.split('@')[0];
+  };
+
+  const userInitials = user?.email ? getInitials(user.email) : 'U';
+  const userName = user?.email ? getDisplayName(user.email) : 'User';
+
   return (
     <aside className="w-64 bg-white border-r border-[#D3D1C7] border-r-[0.5px] h-screen flex flex-col">
       <div className="p-6">
@@ -70,14 +108,18 @@ export function Sidebar({ role }: SidebarProps) {
       </nav>
       <div className="p-6 border-t border-[#D3D1C7] border-t-[0.5px]">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-[#D85A30] rounded-full flex items-center justify-center text-white font-medium">
-            JD
+          <div className="w-10 h-10 bg-[#D85A30] rounded-full flex items-center justify-center text-white font-medium text-sm">
+            {userInitials}
           </div>
           <div className="flex-1">
-            <p className="text-[15px] font-medium text-[#2C2C2A]">Joan Doe</p>
+            <p className="text-[15px] font-medium text-[#2C2C2A]">{userName}</p>
             <p className="text-[13px] text-[#5F5E5A] capitalize">{role}</p>
           </div>
-          <button className="text-[#5F5E5A] hover:text-[#D85A30]">
+          <button 
+            className="text-[#5F5E5A] hover:text-[#D85A30]"
+            onClick={handleLogout}
+            title="Logout"
+          >
             <LogOut size={18} />
           </button>
         </div>

@@ -1,48 +1,101 @@
 import { Sidebar } from '../../components/Sidebar';
 import { MetricCard, Card } from '../../components/Card';
-import { Badge } from '../../components/Badge';
 import { Button } from '../../components/Button';
-import { UserPlus } from 'lucide-react';
+import { useState, useEffect } from 'react';
+
+interface DashboardStats {
+  nextMatchDate: string | null;
+  nextMatchTime: string | null;
+  nextMatchCourt: string | null;
+  classificationPosition: string | null;
+  pendingDocuments: number;
+  matchesPlayed: number;
+  wins: number;
+  draws: number;
+  losses: number;
+}
+
+interface InscriptionStep {
+  label: string;
+  active: boolean;
+  completed: boolean;
+}
 
 export default function CapitaDashboard() {
-  const inscriptionSteps = [
-    { label: 'Pendent docs', active: false, completed: true },
-    { label: 'Pendent pagament', active: false, completed: true },
-    { label: 'Pendent validació', active: true, completed: false },
+  const [stats, setStats] = useState<DashboardStats>({
+    nextMatchDate: null,
+    nextMatchTime: null,
+    nextMatchCourt: null,
+    classificationPosition: null,
+    pendingDocuments: 0,
+    matchesPlayed: 0,
+    wins: 0,
+    draws: 0,
+    losses: 0,
+  });
+  const [inscriptionSteps, setInscriptionSteps] = useState<InscriptionStep[]>([
+    { label: 'Pendent docs', active: false, completed: false },
+    { label: 'Pendent pagament', active: false, completed: false },
+    { label: 'Pendent validació', active: false, completed: false },
     { label: 'Inscrit', active: false, completed: false },
     { label: 'Actiu', active: false, completed: false },
-  ];
+  ]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const upcomingMatches = [
-    {
-      date: '10 Maig 2026',
-      time: '18:00',
-      court: 'Pista 1',
-      opponent: 'Real Madrid CF',
-      status: 'confirmed' as const,
-    },
-    {
-      date: '17 Maig 2026',
-      time: '20:00',
-      court: 'Pista 2',
-      opponent: 'Valencia CF',
-      status: 'confirmed' as const,
-    },
-    {
-      date: '24 Maig 2026',
-      time: '19:00',
-      court: 'Pista 1',
-      opponent: 'Atlètic de Madrid',
-      status: 'pending' as const,
-    },
-  ];
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setIsLoading(true);
+        // API calls to get dashboard data would go here
+        // For now, we initialize with empty/null values
+        const response = await fetch('/api/dashboard');
+        if (response.ok) {
+          const data = await response.json();
+          setStats(data.stats || stats);
+          setInscriptionSteps(data.inscriptionSteps || inscriptionSteps);
+        }
+      } catch (err) {
+        console.error('Error fetching dashboard:', err);
+        // Keep the default empty state on error
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  const teamPlayers = [
-    { name: 'Joan Garcia', dniStatus: 'approved' as const, insuranceStatus: 'approved' as const },
-    { name: 'Marc López', dniStatus: 'approved' as const, insuranceStatus: 'approved' as const },
-    { name: 'Pau Martí', dniStatus: 'pending' as const, insuranceStatus: 'pending' as const },
-    { name: 'David Soler', dniStatus: 'approved' as const, insuranceStatus: 'rejected' as const },
-  ];
+    fetchDashboardData();
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen bg-[#F1EFE8]">
+        <Sidebar role="capita" />
+        <main className="flex-1 p-8">
+          <div className="max-w-7xl mx-auto">
+            <p className="text-[#5F5E5A]">Carregant...</p>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex min-h-screen bg-[#F1EFE8]">
+        <Sidebar role="capita" />
+        <main className="flex-1 p-8">
+          <div className="max-w-7xl mx-auto">
+            <Card className="p-6 text-center">
+              <p className="text-[#A32D2D]">Error: {error}</p>
+              <Button variant="primary" className="mt-4" onClick={() => window.location.reload()}>
+                Reintentar
+              </Button>
+            </Card>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen bg-[#F1EFE8]">
@@ -53,10 +106,26 @@ export default function CapitaDashboard() {
 
           {/* Metric Cards */}
           <div className="grid grid-cols-4 gap-6 mb-8">
-            <MetricCard label="Proper partit" value="10 Maig" subtitle="18:00 · Pista 1" />
-            <MetricCard label="Posició classificació" value="3è" subtitle="Grup A" />
-            <MetricCard label="Documents pendents" value="2" subtitle="Rebutjat: 1" />
-            <MetricCard label="Partits jugats" value="8" subtitle="5V · 2E · 1D" />
+            <MetricCard 
+              label="Proper partit" 
+              value={stats.nextMatchDate ? stats.nextMatchDate : '-'} 
+              subtitle={stats.nextMatchTime && stats.nextMatchCourt ? `${stats.nextMatchTime} · ${stats.nextMatchCourt}` : 'Sense partits programats'} 
+            />
+            <MetricCard 
+              label="Posició classificació" 
+              value={stats.classificationPosition || '-'} 
+              subtitle="Grupo" 
+            />
+            <MetricCard 
+              label="Documents pendents" 
+              value={stats.pendingDocuments.toString()} 
+              subtitle={stats.pendingDocuments > 0 ? `Puja els documents` : 'Tots completats'} 
+            />
+            <MetricCard 
+              label="Partits jugats" 
+              value={stats.matchesPlayed.toString()} 
+              subtitle={stats.matchesPlayed > 0 ? `${stats.wins}V · ${stats.draws}E · ${stats.losses}D` : '0V · 0E · 0D'} 
+            />
           </div>
 
           {/* Inscription Status */}
@@ -85,58 +154,6 @@ export default function CapitaDashboard() {
               ))}
             </div>
           </Card>
-
-          {/* Two Column Layout */}
-          <div className="grid grid-cols-2 gap-6">
-            {/* Upcoming Matches */}
-            <Card>
-              <h3 className="mb-6">Pròxims partits</h3>
-              <div className="space-y-4">
-                {upcomingMatches.map((match, i) => (
-                  <div key={i} className="p-4 bg-[#F1EFE8] rounded-lg">
-                    <div className="flex items-start justify-between mb-2">
-                      <div>
-                        <p className="font-medium text-[#2C2C2A]">vs {match.opponent}</p>
-                        <p className="text-[13px] text-[#5F5E5A]">
-                          {match.date} · {match.time}
-                        </p>
-                        <p className="text-[13px] text-[#5F5E5A]">{match.court}</p>
-                      </div>
-                      <Badge variant={match.status === 'confirmed' ? 'approved' : 'pending'}>
-                        {match.status === 'confirmed' ? 'Confirmat' : 'Pendent'}
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </Card>
-
-            {/* Team Panel */}
-            <Card>
-              <div className="flex items-center justify-between mb-6">
-                <h3>El meu equip</h3>
-                <Button variant="secondary" className="flex items-center gap-2">
-                  <UserPlus size={16} />
-                  Convidar jugador
-                </Button>
-              </div>
-              <div className="space-y-3">
-                {teamPlayers.map((player, i) => (
-                  <div key={i} className="p-3 bg-[#F1EFE8] rounded-lg">
-                    <p className="font-medium text-[#2C2C2A] mb-2">{player.name}</p>
-                    <div className="flex gap-2">
-                      <Badge variant={player.dniStatus}>
-                        DNI: {player.dniStatus === 'approved' ? 'Aprovat' : player.dniStatus === 'pending' ? 'Pendent' : 'Rebutjat'}
-                      </Badge>
-                      <Badge variant={player.insuranceStatus}>
-                        Assegurança: {player.insuranceStatus === 'approved' ? 'Aprovat' : player.insuranceStatus === 'pending' ? 'Pendent' : 'Rebutjat'}
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          </div>
         </div>
       </main>
     </div>

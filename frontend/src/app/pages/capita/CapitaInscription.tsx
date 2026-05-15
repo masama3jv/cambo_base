@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { Sidebar } from '../../components/Sidebar';
 import { Card } from '../../components/Card';
@@ -7,26 +7,90 @@ import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { CheckCircle } from 'lucide-react';
 
+interface InscriptionData {
+  teamName: string;
+  sport: string;
+  players: string[];
+  amount: number;
+}
+
 export default function CapitaInscription() {
   const navigate = useNavigate();
   const [paymentComplete, setPaymentComplete] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [teamData, setTeamData] = useState<InscriptionData>({
+    teamName: '',
+    sport: '',
+    players: [],
+    amount: 0,
+  });
   const [cardData, setCardData] = useState({
     number: '',
     expiry: '',
     cvv: '',
   });
 
-  const teamData = {
-    name: 'FC Barcelona',
-    sport: 'Futbol Sala',
-    players: ['Joan Garcia', 'Marc López', 'Pau Martí', 'David Soler'],
-    amount: 120,
+  useEffect(() => {
+    const fetchInscriptionData = async () => {
+      try {
+        setIsLoading(true);
+        // API call to get inscription data would go here
+        const response = await fetch('/api/team/inscription-data');
+        if (response.ok) {
+          const data = await response.json();
+          setTeamData(data.teamData);
+        } else {
+          setError('Failed to load inscription data');
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Error loading inscription data');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchInscriptionData();
+  }, []);
+
+  const handlePayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      // API call to process payment would go here
+      setPaymentComplete(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Payment failed');
+    }
   };
 
-  const handlePayment = (e: React.FormEvent) => {
-    e.preventDefault();
-    setPaymentComplete(true);
-  };
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen bg-[#F1EFE8]">
+        <Sidebar role="capita" />
+        <main className="flex-1 p-8">
+          <div className="max-w-4xl mx-auto">
+            <p className="text-[#5F5E5A]">Carregant...</p>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex min-h-screen bg-[#F1EFE8]">
+        <Sidebar role="capita" />
+        <main className="flex-1 p-8 flex items-center justify-center">
+          <Card className="max-w-2xl text-center">
+            <p className="text-[#A32D2D]">Error: {error}</p>
+            <Button variant="primary" className="mt-4" onClick={() => window.location.reload()}>
+              Reintentar
+            </Button>
+          </Card>
+        </main>
+      </div>
+    );
+  }
 
   if (paymentComplete) {
     return (
@@ -70,13 +134,13 @@ export default function CapitaInscription() {
                   <p className="text-[12px] text-[#5F5E5A] uppercase tracking-wider mb-1">
                     Nom de l'equip
                   </p>
-                  <p className="font-medium text-[#2C2C2A]">{teamData.name}</p>
+                  <p className="font-medium text-[#2C2C2A]">{teamData.teamName || '-'}</p>
                 </div>
                 <div>
                   <p className="text-[12px] text-[#5F5E5A] uppercase tracking-wider mb-1">
                     Esport
                   </p>
-                  <Badge variant="info">{teamData.sport}</Badge>
+                  <Badge variant="info">{teamData.sport || '-'}</Badge>
                 </div>
                 <div>
                   <p className="text-[12px] text-[#5F5E5A] uppercase tracking-wider mb-1">

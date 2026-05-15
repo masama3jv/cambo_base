@@ -6,6 +6,10 @@ import PlayerInvitationPage from "./pages/PlayerInvitationPage";
 import CapitaDashboard from "./pages/capita/CapitaDashboard";
 import CapitaDocuments from "./pages/capita/CapitaDocuments";
 import CapitaInscription from "./pages/capita/CapitaInscription";
+import CapitaTeam from "./pages/capita/CapitaTeam";
+import CapitaCalendar from "./pages/capita/CapitaCalendar";
+import CapitaStatistics from "./pages/capita/CapitaStatistics";
+import CapitaNotifications from "./pages/capita/CapitaNotifications";
 import JugadorDashboard from "./pages/jugador/JugadorDashboard";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminInscriptions from "./pages/admin/AdminInscriptions";
@@ -33,6 +37,22 @@ export const router = createBrowserRouter([
   {
     path: "/dashboard",
     Component: CapitaDashboard,
+  },
+  {
+    path: "/team",
+    Component: CapitaTeam,
+  },
+  {
+    path: "/calendar",
+    Component: CapitaCalendar,
+  },
+  {
+    path: "/stats",
+    Component: CapitaStatistics,
+  },
+  {
+    path: "/notifications",
+    Component: CapitaNotifications,
   },
   {
     path: "/documents",

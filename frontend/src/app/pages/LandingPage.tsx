@@ -4,8 +4,47 @@ import { Button } from '../components/Button';
 import { Badge } from '../components/Badge';
 import { Card } from '../components/Card';
 import { CheckCircle, Calendar, FileCheck, Clock } from 'lucide-react';
+import { useState, useEffect } from 'react';
+
+interface Match {
+  teams: string;
+  date: string;
+  court: string;
+}
+
+interface Result {
+  teams: string;
+  date: string;
+}
 
 export default function LandingPage() {
+  const [matches, setMatches] = useState<Match[]>([]);
+  const [results, setResults] = useState<Result[]>([]);
+  const [isLoadingTournament, setIsLoadingTournament] = useState(true);
+
+  useEffect(() => {
+    const fetchTournamentData = async () => {
+      try {
+        setIsLoadingTournament(true);
+        // API call to get public tournament matches would go here
+        const response = await fetch('/api/public/matches');
+        if (response.ok) {
+          const data = await response.json();
+          setMatches(data.upcomingMatches || []);
+          setResults(data.results || []);
+        }
+      } catch (err) {
+        console.error('Error loading tournament data:', err);
+        setMatches([]);
+        setResults([]);
+      } finally {
+        setIsLoadingTournament(false);
+      }
+    };
+
+    fetchTournamentData();
+  }, []);
+
   return (
     <div className="min-h-screen bg-[#F1EFE8]">
       <Navbar />
@@ -39,42 +78,40 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Public Calendar/Results Section */}
-      <section className="max-w-7xl mx-auto px-8 pb-24">
-        <h2 className="text-center mb-12">Pròxims Partits i Resultats</h2>
-        <div className="grid grid-cols-2 gap-8">
-          <Card>
-            <h3 className="mb-6">Pròxims Partits</h3>
-            <div className="space-y-4">
-              {[
-                { teams: 'FC Barcelona vs Real Madrid', date: 'Dissabte 10 Maig, 18:00', court: 'Pista 1' },
-                { teams: 'Valencia vs Sevilla', date: 'Diumenge 11 Maig, 10:00', court: 'Pista 2' },
-                { teams: 'Athletic vs Atlético', date: 'Diumenge 11 Maig, 12:00', court: 'Pista 1' },
-              ].map((match, i) => (
-                <div key={i} className="p-4 bg-[#F1EFE8] rounded-lg">
-                  <p className="font-medium text-[#2C2C2A] mb-1">{match.teams}</p>
-                  <p className="text-[13px] text-[#5F5E5A]">{match.date} · {match.court}</p>
+      {/* Public Calendar/Results Section - Only show if there's data */}
+      {!isLoadingTournament && (matches.length > 0 || results.length > 0) && (
+        <section className="max-w-7xl mx-auto px-8 pb-24">
+          <h2 className="text-center mb-12">Pròxims Partits i Resultats</h2>
+          <div className="grid grid-cols-2 gap-8">
+            {matches.length > 0 && (
+              <Card>
+                <h3 className="mb-6">Pròxims Partits</h3>
+                <div className="space-y-4">
+                  {matches.slice(0, 3).map((match, i) => (
+                    <div key={i} className="p-4 bg-[#F1EFE8] rounded-lg">
+                      <p className="font-medium text-[#2C2C2A] mb-1">{match.teams}</p>
+                      <p className="text-[13px] text-[#5F5E5A]">{match.date} · {match.court}</p>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </Card>
-          <Card>
-            <h3 className="mb-6">Resultats Recents</h3>
-            <div className="space-y-4">
-              {[
-                { teams: 'FC Barcelona 5 - 3 Real Madrid', date: 'Dilluns 5 Maig' },
-                { teams: 'Valencia 2 - 2 Sevilla', date: 'Diumenge 4 Maig' },
-                { teams: 'Athletic 4 - 1 Atlético', date: 'Dissabte 3 Maig' },
-              ].map((result, i) => (
-                <div key={i} className="p-4 bg-[#F1EFE8] rounded-lg">
-                  <p className="font-medium text-[#2C2C2A] mb-1">{result.teams}</p>
-                  <p className="text-[13px] text-[#5F5E5A]">{result.date}</p>
+              </Card>
+            )}
+            {results.length > 0 && (
+              <Card>
+                <h3 className="mb-6">Resultats Recents</h3>
+                <div className="space-y-4">
+                  {results.slice(0, 3).map((result, i) => (
+                    <div key={i} className="p-4 bg-[#F1EFE8] rounded-lg">
+                      <p className="font-medium text-[#2C2C2A] mb-1">{result.teams}</p>
+                      <p className="text-[13px] text-[#5F5E5A]">{result.date}</p>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </Card>
-        </div>
-      </section>
+              </Card>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* Features Grid */}
       <section className="max-w-7xl mx-auto px-8 pb-24">
