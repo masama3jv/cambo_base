@@ -3,6 +3,12 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { connectDatabase } from './db/connection.ts';
 import authRoutes from './routes/auth.ts';
+import teamsRoutes from './routes/teams.ts';
+import inscriptionsRoutes from './routes/inscriptions.ts';
+import capitaRoutes from './routes/capita.ts';
+import adminRoutes from './routes/admin.ts';
+import arbitreRoutes from './routes/arbitre.ts';
+import publicRoutes from './routes/public.ts';
 
 dotenv.config();
 
@@ -17,8 +23,17 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Serve static files from uploads directory
+app.use('/uploads', express.static('uploads'));
+
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/teams', teamsRoutes);
+app.use('/api/team', inscriptionsRoutes);
+app.use('/api', capitaRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/arbitre', arbitreRoutes);
+app.use('/api/public', publicRoutes);
 
 // Health check
 app.get('/api/health', (req: Request, res: Response) => {

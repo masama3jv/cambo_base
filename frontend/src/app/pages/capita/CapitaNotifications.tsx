@@ -20,20 +20,22 @@ export default function CapitaNotifications() {
     const fetchNotifications = async () => {
       try {
         setIsLoading(true);
-        // API call to get notifications would go here
-        const response = await fetch('/api/notifications');
-        if (!response.ok && response.status !== 404) {
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/notifications', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (!response.ok) {
           throw new Error('Failed to fetch notifications');
         }
-        const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-          const data = await response.json();
-          setNotifications(data.notifications || []);
-        } else {
-          throw new Error('Invalid response from server');
-        }
+        
+        const data = await response.json();
+        setNotifications(data.notifications || []);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Error loading notifications');
+        console.error('Error:', err);
+        setError('No hi ha notificacions disponibles');
         setNotifications([]);
       } finally {
         setIsLoading(false);

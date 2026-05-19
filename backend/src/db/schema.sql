@@ -5,12 +5,14 @@ USE campo_base;
 -- ============================================================================
 -- DROP EXISTING TABLES (in reverse dependency order)
 -- ============================================================================
+DROP TABLE IF EXISTS notifications;
 DROP TABLE IF EXISTS match_sheets;
 DROP TABLE IF EXISTS matches;
 DROP TABLE IF EXISTS courts;
 DROP TABLE IF EXISTS inscriptions;
 DROP TABLE IF EXISTS tournaments;
 DROP TABLE IF EXISTS documents;
+DROP TABLE IF EXISTS invitations;
 DROP TABLE IF EXISTS team_players;
 DROP TABLE IF EXISTS teams;
 DROP TABLE IF EXISTS players;
@@ -160,4 +162,40 @@ CREATE TABLE match_sheets (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE,
   INDEX idx_status (status)
+);
+
+-- Invitations table: Player invitations to teams via email
+CREATE TABLE invitations (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  team_id INT NOT NULL,
+  email VARCHAR(100) NOT NULL,
+  token VARCHAR(100) NOT NULL UNIQUE,
+  expires_at TIMESTAMP NOT NULL,
+  used BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE,
+  INDEX idx_team_id (team_id),
+  INDEX idx_token (token),
+  INDEX idx_email (email),
+  INDEX idx_expires_at (expires_at)
+);
+
+-- Notifications table: System notifications for users
+CREATE TABLE notifications (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  user_id INT NOT NULL,
+  type ENUM('document_approved', 'document_rejected', 'calendar_published', 'match_scheduled', 'match_updated', 'system') DEFAULT 'system',
+  title VARCHAR(255) NOT NULL,
+  message TEXT NOT NULL,
+  related_team_id INT,
+  related_document_id INT,
+  is_read BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (related_team_id) REFERENCES teams(id) ON DELETE SET NULL,
+  FOREIGN KEY (related_document_id) REFERENCES documents(id) ON DELETE SET NULL,
+  INDEX idx_user_id (user_id),
+  INDEX idx_type (type),
+  INDEX idx_is_read (is_read),
+  INDEX idx_created_at (created_at)
 );

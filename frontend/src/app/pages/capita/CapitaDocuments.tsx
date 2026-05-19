@@ -4,51 +4,85 @@ import { Sidebar } from '../../components/Sidebar';
 import { Card } from '../../components/Card';
 import { Badge } from '../../components/Badge';
 import { Button } from '../../components/Button';
-import { Upload, CheckCircle, XCircle } from 'lucide-react';
+import DocumentUploadZone from '../../components/DocumentUploadZone';
+import { CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 
-interface PlayerDocument {
-  playerId: string;
+interface Document {
+  id: number;
+  user_id: number;
   name: string;
-  dni: { uploaded: boolean; status: 'approved' | 'pending' | 'rejected'; fileName: string };
-  insurance: { uploaded: boolean; status: 'approved' | 'pending' | 'rejected'; fileName: string; rejectionReason?: string };
+  document_type: string;
+  status: 'pendent' | 'aprovat' | 'rebutjat';
+  rejection_reason?: string;
+  file_path?: string;
 }
 
 export default function CapitaDocuments() {
   const navigate = useNavigate();
-  const [players, setPlayers] = useState<PlayerDocument[]>([]);
+  const [documents, setDocuments] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [noTeam, setNoTeam] = useState(false);
+  const [noPlayers, setNoPlayers] = useState(false);
+  const [teamId, setTeamId] = useState<number | null>(null);
+  const [showUploadModal, setShowUploadModal] = useState<{ userId: number; documentType: 'dni' | 'asseguranca' | 'altres' } | null>(null);
+
+  const fetchPlayerDocuments = async () => {
+    try {
+      setIsLoading(true);
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/team/documents', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch documents');
+      }
+      
+      const data = await response.json();
+      
+      if (data.noTeam) {
+        setNoTeam(true);
+        setDocuments([]);
+      } else if (data.noPlayers) {
+        setNoPlayers(true);
+        setDocuments([]);
+      } else {
+        setDocuments(data.documents || []);
+      }
+    } catch (err) {
+      console.error('Error:', err);
+      setError(err instanceof Error ? err.message : 'Error loading documents');
+      setDocuments([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchPlayerDocuments = async () => {
+    // Get team ID
+    const getTeamId = async () => {
       try {
-        setIsLoading(true);
-        // API call to get player documents would go here
-        const response = await fetch('/api/team/documents');
-        if (!response.ok && response.status !== 404) {
-          throw new Error('Failed to fetch documents');
-        }
-        const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-          const data = await response.json();
-          setPlayers(data.players || []);
-        } else {
-          throw new Error('Invalid response from server');
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/teams', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        const data = await response.json();
+        if (data.teams && data.teams.length > 0) {
+          setTeamId(data.teams[0].id);
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Error loading documents');
-        setPlayers([]);
-      } finally {
-        setIsLoading(false);
+        console.error('Error getting team ID:', err);
       }
     };
 
+    getTeamId();
     fetchPlayerDocuments();
   }, []);
-
-  const allDocsUploaded = players.length > 0 && players.every(
-    (p) => p.dni.uploaded && p.insurance.uploaded
-  );
 
   if (isLoading) {
     return (
@@ -81,6 +115,50 @@ export default function CapitaDocuments() {
     );
   }
 
+  if (noTeam) {
+    return (
+      <div className="flex min-h-screen bg-[#F1EFE8]">
+        <Sidebar role="capita" />
+        <main className="flex-1 p-8 flex items-center justify-center">
+          <Card className="max-w-2xl text-center">
+            <div className="w-20 h-20 bg-[#FFF4E6] rounded-full flex items-center justify-center mx-auto mb-6">
+              <AlertCircle size={40} className="text-[#D85A30]" />
+            </div>
+            <h2 className="mb-4">Primer has de crear un equip</h2>
+            <p className="text-[#5F5E5A] mb-6">
+              Crea un equip a la secció "El meu equip" per poder pujar documents.
+            </p>
+            <Button variant="primary" onClick={() => navigate('/team')}>
+              Crear equip
+            </Button>
+          </Card>
+        </main>
+      </div>
+    );
+  }
+
+  if (noPlayers) {
+    return (
+      <div className="flex min-h-screen bg-[#F1EFE8]">
+        <Sidebar role="capita" />
+        <main className="flex-1 p-8 flex items-center justify-center">
+          <Card className="max-w-2xl text-center">
+            <div className="w-20 h-20 bg-[#FFF4E6] rounded-full flex items-center justify-center mx-auto mb-6">
+              <AlertCircle size={40} className="text-[#D85A30]" />
+            </div>
+            <h2 className="mb-4">Afegeix jugadors abans de pujar documents</h2>
+            <p className="text-[#5F5E5A] mb-6">
+              Invita jugadors al teu equip per poder pujar els seus documents.
+            </p>
+            <Button variant="primary" onClick={() => navigate('/team')}>
+              Gestionar equip
+            </Button>
+          </Card>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen bg-[#F1EFE8]">
       <Sidebar role="capita" />
@@ -88,95 +166,134 @@ export default function CapitaDocuments() {
         <div className="max-w-5xl mx-auto">
           <h1 className="mb-2">Documents</h1>
           <p className="text-[#5F5E5A] mb-8">
-            Puja els documents de DNI i assegurança mèdica de tots els jugadors de l'equip
+            Estat de la documentació de tots els jugadors
           </p>
 
-          <div className="space-y-6">
-            {players.map((player) => (
-              <Card key={player.playerId}>
-                <h3 className="mb-6">{player.name}</h3>
-                <div className="grid grid-cols-2 gap-6">
-                  {/* DNI Upload */}
-                  <div>
-                    <label className="block mb-3">DNI</label>
-                    <div className="border-2 border-dashed border-[#D3D1C7] rounded-lg p-6 text-center">
-                      {player.dni.uploaded ? (
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-center gap-2">
-                            <CheckCircle size={20} className="text-[#3B6D11]" />
-                            <p className="text-[13px] text-[#2C2C2A]">{player.dni.fileName}</p>
-                          </div>
-                          <Badge variant={player.dni.status}>
-                            {player.dni.status === 'approved'
-                              ? 'Aprovat'
-                              : player.dni.status === 'pending'
-                              ? 'Pendent validació'
-                              : 'Rebutjat'}
-                          </Badge>
-                        </div>
-                      ) : (
-                        <div className="space-y-3">
-                          <Upload size={32} className="mx-auto text-[#5F5E5A]" />
-                          <Button variant="secondary">Pujar DNI</Button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Insurance Upload */}
-                  <div>
-                    <label className="block mb-3">Assegurança mèdica</label>
-                    <div className="border-2 border-dashed border-[#D3D1C7] rounded-lg p-6 text-center">
-                      {player.insurance.uploaded ? (
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-center gap-2">
-                            {player.insurance.status === 'rejected' ? (
+          {documents.length === 0 ? (
+            <Card className="text-center py-12">
+              <div className="w-16 h-16 bg-[#EAF3DE] rounded-full flex items-center justify-center mx-auto mb-6">
+                <CheckCircle size={32} className="text-[#3B6D11]" />
+              </div>
+              <h3 className="mb-2">No hi ha documents</h3>
+              <p className="text-[#5F5E5A]">
+                Els documents dels jugadors apareixeran aquí quan se subixin.
+              </p>
+            </Card>
+          ) : (
+            <>
+              <div className="space-y-6">
+                {Object.entries(
+                  documents.reduce((acc: any, doc: Document) => {
+                    if (!acc[doc.user_id]) {
+                      acc[doc.user_id] = { name: doc.name, documents: [] };
+                    }
+                    acc[doc.user_id].documents.push(doc);
+                    return acc;
+                  }, {})
+                ).map(([playerId, playerData]: any) => (
+                  <Card key={playerId}>
+                    <h3 className="mb-6">{playerData.name}</h3>
+                    <div className="space-y-4">
+                      {playerData.documents.map((doc: Document) => (
+                        <div key={doc.id} className="flex items-center justify-between p-4 bg-[#F9F7F3] rounded-lg">
+                          <div className="flex items-center gap-3">
+                            {doc.status === 'aprovat' ? (
+                              <CheckCircle size={20} className="text-[#3B6D11]" />
+                            ) : doc.status === 'rebutjat' ? (
                               <XCircle size={20} className="text-[#A32D2D]" />
                             ) : (
-                              <CheckCircle size={20} className="text-[#3B6D11]" />
+                              <div className="w-5 h-5 bg-[#FFB84D] rounded-full" />
                             )}
-                            <p className="text-[13px] text-[#2C2C2A]">{player.insurance.fileName}</p>
-                          </div>
-                          <Badge variant={player.insurance.status}>
-                            {player.insurance.status === 'approved'
-                              ? 'Aprovat'
-                              : player.insurance.status === 'pending'
-                              ? 'Pendent validació'
-                              : 'Rebutjat'}
-                          </Badge>
-                          {player.insurance.status === 'rejected' && (
-                            <div className="text-left">
-                              <p className="text-[13px] text-[#A32D2D] mb-2">
-                                {player.insurance.rejectionReason}
+                            <div className="flex-1">
+                              <p className="font-medium text-[#2C2C2A] capitalize">
+                                {doc.document_type === 'dni' ? 'DNI' : 'Assegurança mèdica'}
                               </p>
-                              <Button variant="primary" className="w-full">
-                                Tornar a pujar
-                              </Button>
+                              {doc.rejection_reason && (
+                                <p className="text-[12px] text-[#A32D2D]">Motiu: {doc.rejection_reason}</p>
+                              )}
                             </div>
-                          )}
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <Badge
+                              variant={
+                                doc.status === 'aprovat'
+                                  ? 'success'
+                                  : doc.status === 'rebutjat'
+                                  ? 'error'
+                                  : 'pending'
+                              }
+                            >
+                              {doc.status === 'aprovat'
+                                ? 'Aprovat'
+                                : doc.status === 'rebutjat'
+                                ? 'Rebutjat'
+                                : 'Pendent'}
+                            </Badge>
+                            <Button 
+                              variant="secondary" 
+                              onClick={() => teamId && setShowUploadModal({ userId: parseInt(playerId), documentType: doc.document_type as any })}
+                              className="text-xs"
+                            >
+                              {doc.file_path ? 'Actualizar' : 'Pujar'}
+                            </Button>
+                          </div>
                         </div>
-                      ) : (
-                        <div className="space-y-3">
-                          <Upload size={32} className="mx-auto text-[#5F5E5A]" />
-                          <Button variant="secondary">Pujar assegurança</Button>
-                        </div>
-                      )}
+                      ))}
+                    </div>
+                  </Card>
+                ))}
+              </div>
+
+              {documents.every((d) => d.status === 'aprovat') && (
+                <div className="mt-8 flex justify-end">
+                  <Button variant="primary" onClick={() => navigate('/inscription')}>
+                    Continuar a inscripció
+                  </Button>
+                </div>
+              )}
+
+              {!documents.every((d) => d.status === 'aprovat') && (
+                <Card className="mt-8 bg-[#FFF4E6] border border-[#FFB84D]">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle size={20} className="text-[#D85A30] flex-shrink-0 mt-1" />
+                    <div>
+                      <p className="font-medium text-[#D85A30] mb-2">Documentació incompleta</p>
+                      <p className="text-[13px] text-[#D85A30]">
+                        Tots els documents han de ser aprovats per poder procedir amb la inscripció.
+                      </p>
                     </div>
                   </div>
-                </div>
-              </Card>
-            ))}
-          </div>
+                </Card>
+              )}
 
-          <div className="mt-8 flex justify-end">
-            <Button
-              variant="primary"
-              disabled={!allDocsUploaded}
-              onClick={() => navigate('/inscription')}
-            >
-              Continuar a inscripció
-            </Button>
-          </div>
+              {/* Upload Modal */}
+              {showUploadModal && teamId && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                  <Card className="max-w-md w-full">
+                    <div className="flex justify-between items-center mb-6">
+                      <h2>Pujar document</h2>
+                      <button 
+                        onClick={() => setShowUploadModal(null)}
+                        className="text-gray-500 hover:text-gray-700"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    
+                    <DocumentUploadZone 
+                      userId={showUploadModal.userId}
+                      teamId={teamId}
+                      documentType={showUploadModal.documentType}
+                      onUploadSuccess={() => {
+                        setShowUploadModal(null);
+                        fetchPlayerDocuments();
+                      }}
+                    />
+                  </Card>
+                </div>
+              )}
+            </>
+          )}
         </div>
       </main>
     </div>

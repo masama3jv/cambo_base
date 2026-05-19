@@ -15,6 +15,7 @@ interface Player {
 
 export default function CapitaTeam() {
   const [players, setPlayers] = useState<Player[]>([]);
+  const [teamId, setTeamId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -22,24 +23,44 @@ export default function CapitaTeam() {
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteStatus, setInviteStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [inviteError, setInviteError] = useState<string | null>(null);
 
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inviteEmail) return;
+    if (!inviteEmail || !teamId) return;
     
     setInviteStatus('loading');
+    setInviteError(null);
     try {
-      // API call to send invitation would go here
-      // const response = await fetch('/api/team/invite', { method: 'POST', body: JSON.stringify({ email: inviteEmail }) });
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate delay
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/teams/${teamId}/invite-player`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ email: inviteEmail })
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        setInviteError(data.error || 'Error en enviar la invitació');
+        setInviteStatus('error');
+        return;
+      }
       
       setInviteStatus('success');
       setTimeout(() => {
         setIsInviteModalOpen(false);
         setInviteStatus('idle');
         setInviteEmail('');
+        setInviteError(null);
+        // Refresh players list
+        window.location.reload();
       }, 2000);
     } catch (err) {
+      setInviteError(err instanceof Error ? err.message : 'Error en enviar la invitació');
       setInviteStatus('error');
     }
   };
@@ -48,18 +69,34 @@ export default function CapitaTeam() {
     const fetchTeamPlayers = async () => {
       try {
         setIsLoading(true);
-        // API call to get team players would go here
-        // For now, simulate empty state for new teams
-        const response = await fetch('/api/team/players');
-        if (!response.ok && response.status !== 404) {
-          throw new Error('Failed to fetch players');
+        const token = localStorage.getItem('token');
+        
+        // Get team info first
+        const teamResponse = await fetch('/api/teams', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (!teamResponse.ok) {
+          throw new Error('Failed to fetch team');
         }
-        const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-          const data = await response.json();
-          setPlayers(data.players || []);
-        } else {
-          throw new Error('Invalid response from server');
+        
+        const teams = await teamResponse.json();
+        if (teams && teams.length > 0) {
+          setTeamId(teams[0].id);
+          
+          // Get team players
+          const playersResponse = await fetch(`/api/teams/${teams[0].id}/players`, {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          
+          if (playersResponse.ok) {
+            const playersData = await playersResponse.json();
+            setPlayers(playersData || []);
+          }
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Error loading players');
@@ -199,14 +236,19 @@ export default function CapitaTeam() {
                     required
                     disabled={inviteStatus === 'loading'}
                   />
-                  {inviteStatus === 'error' && (
-                    <p className="text-[#A32D2D] text-[13px]">Hi ha hagut un error en enviar la invitació.</p>
+                  {inviteError && (
+                    <p className="text-[#A32D2D] text-[13px]">{inviteError}</p>
                   )}
                   <div className="flex justify-end gap-3 mt-6">
                     <Button 
                       type="button" 
                       variant="ghost" 
-                      onClick={() => setIsInviteModalOpen(false)}
+                      onClick={() => {
+                        setIsInviteModalOpen(false);
+                        setInviteStatus('idle');
+                        setInviteEmail('');
+                        setInviteError(null);
+                      }}
                       disabled={inviteStatus === 'loading'}
                     >
                       Cancel·lar
