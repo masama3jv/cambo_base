@@ -1,6 +1,7 @@
 import express, { Router } from 'express';
 import { query } from '../db/connection.js';
 import { verifyToken, AuthRequest, requireRole } from '../middleware/auth.js';
+import { generateCalendar, saveMatchesToDatabase } from '../services/calendarService.js';
 
 const router: Router = express.Router();
 
@@ -166,66 +167,89 @@ router.post('/inscriptions/:teamId/reject-document', verifyToken, requireRole(['
 router.post('/generate-calendar', verifyToken, requireRole(['admin']), async (req: AuthRequest, res) => {
   try {
     const { 
-      tournamentConfig: { 
-        format, 
-        numTeams, 
-        courts, 
-        timeSlots, 
-        matchDuration,
-        pointsWin,
-        pointsDraw,
-        pointsLoss 
-      } 
+      format,
+      startDate,
+      endDate,
+      matchDurationMinutes,
+      breakMinutes,
+      courts: courtNames,
+      matchesPerDay
     } = req.body;
 
-    if (!format || !numTeams || !courts || !timeSlots) {
-      return res.status(400).json({ error: 'Missing configuration' });
+    if (!format || !startDate || !endDate || !matchDurationMinutes || !courtNames || courtNames.length === 0) {
+      return res.status(400).json({ error: 'Missing required fields: format, startDate, endDate, matchDurationMinutes, courts' });
     }
 
-    // Get inscribed teams
+    // Get all inscribed teams
     const teams = await query(`
-      SELECT id FROM teams WHERE status IN ('inscrit', 'pendent_validacio')
-      LIMIT ?
-    `, [numTeams]) as any[];
+      SELECT id, name FROM teams WHERE status IN ('inscrit', 'pendent_validacio', 'actiu')
+    `) as any[];
 
-    if (teams.length < numTeams) {
-      return res.status(400).json({ error: 'Not enough teams' });
+    if (teams.length < 2) {
+      return res.status(400).json({ error: 'Need at least 2 teams to generate calendar' });
+    }
+
+    // Create courts
+    const courtsData = [];
+    for (const courtName of courtNames) {
+      const result = await query(
+        'INSERT INTO courts (name, location) VALUES (?, ?)',
+        [courtName, 'Campo Base']
+      ) as any;
+      courtsData.push({ id: result.insertId, name: courtName });
     }
 
     // Create tournament
-    const result = await query(
-      `INSERT INTO tournaments (name, format, points_win, points_draw, points_loss, match_duration)
+    const tournamentResult = await query(
+      `INSERT INTO tournaments (name, format, status, start_date, end_date, match_duration_minutes) 
        VALUES (?, ?, ?, ?, ?, ?)`,
-      [`Tournament-${Date.now()}`, format, pointsWin, pointsDraw, pointsLoss, matchDuration]
+      [`Tournament-${Date.now()}`, format, 'actiu', startDate, endDate, matchDurationMinutes]
     ) as any;
 
-    const tournamentId = result.insertId;
+    const tournamentId = tournamentResult.insertId;
 
-    // TODO: Generate matches based on format
-    // For now, just create a simple round-robin if format is 'lliga'
+    // Generate calendar using calendar service
+    const config = {
+      tournamentId,
+      format: format as 'round_robin' | 'groups' | 'elimination' | 'mixed',
+      teams,
+      courts: courtsData,
+      startDate: new Date(startDate),
+      endDate: new Date(endDate),
+      matchDurationMinutes,
+      breakMinutes: breakMinutes || 5,
+      datesAvailable: [],
+      matchesPerDay: matchesPerDay || 4
+    };
 
-    // Insert courts
-    for (const court of courts) {
-      await query(
-        'INSERT INTO courts (tournament_id, name, location) VALUES (?, ?, ?)',
-        [tournamentId, court.name, court.location]
-      );
-    }
+    const scheduledMatches = await generateCalendar(config);
+    const savedCount = await saveMatchesToDatabase(tournamentId, scheduledMatches);
 
     // Update teams to 'actiu'
     await query(
-      'UPDATE teams SET status = ? WHERE id IN (?)',
-      ['actiu', teams.map((t: any) => t.id)]
+      'UPDATE teams SET status = ? WHERE status IN (?, ?, ?)',
+      ['actiu', 'inscrit', 'pendent_validacio', 'actiu']
+    );
+
+    // Update tournament status to 'generat'
+    await query(
+      'UPDATE tournaments SET status = ? WHERE id = ?',
+      ['generat', tournamentId]
     );
 
     res.json({
       message: 'Calendar generated successfully',
       tournamentId,
-      teamsCount: teams.length
+      teamsCount: teams.length,
+      matchesCount: savedCount,
+      courtsCount: courtsData.length,
+      startDate,
+      endDate,
+      format
     });
   } catch (error) {
     console.error('Error generating calendar:', error);
-    res.status(500).json({ error: 'Failed to generate calendar' });
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Failed to generate calendar' });
   }
 });
 

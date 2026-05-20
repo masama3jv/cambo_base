@@ -1,6 +1,18 @@
 import express, { Router } from 'express';
 import { query } from '../db/connection.js';
 import { verifyToken, AuthRequest, requireRole } from '../middleware/auth.js';
+import {
+  createMatchSheet,
+  recordGoalFutsal,
+  recordCardFutsal,
+  recordBasketScore,
+  recordBasketFoul,
+  undoLastIncident,
+  generateMatchSheetPDF,
+  getMatchSheetSummary
+} from '../services/matchSheetService.js';
+import fs from 'fs';
+import path from 'path';
 
 const router: Router = express.Router();
 
@@ -87,44 +99,223 @@ router.get('/match/:matchId', verifyToken, requireRole(['arbitre']), async (req:
   }
 });
 
-// POST /api/arbitre/match/:matchId/sheet - Create or update match sheet
+// POST /api/arbitre/match/:matchId/sheet - Create or update match sheet with incident
 router.post('/match/:matchId/sheet', verifyToken, requireRole(['arbitre']), async (req: AuthRequest, res) => {
   try {
     const { matchId } = req.params;
-    const { incidents, status } = req.body;
+    const { action, data } = req.body;
 
-    // Check if sheet exists
+    // Get match info
+    const matches = await query(
+      'SELECT * FROM matches WHERE id = ?',
+      [matchId]
+    ) as any[];
+
+    if (matches.length === 0) {
+      return res.status(404).json({ error: 'Match not found' });
+    }
+
+    const match = matches[0];
+
+    // Get or create sheet
+    let sheetData: any = {
+      matchId,
+      homeTeamId: match.home_team_id,
+      awayTeamId: match.away_team_id,
+      sport: match.sport || 'futsal',
+      homeScore: 0,
+      awayScore: 0,
+      status: 'actiu',
+      incidents: [],
+      startTime: new Date()
+    };
+
+    // Get existing sheet
     const existing = await query(
       'SELECT * FROM match_sheets WHERE match_id = ?',
       [matchId]
     ) as any[];
 
     if (existing.length > 0) {
+      sheetData = JSON.parse(existing[0].incidents || '{}');
+      // Ensure proper structure
+      if (!sheetData.incidents) sheetData.incidents = [];
+    }
+
+    // Process action
+    if (action === 'goal' && data.playerName && data.teamId) {
+      sheetData.homeScore = sheetData.homeScore || 0;
+      sheetData.awayScore = sheetData.awayScore || 0;
+
+      if (data.teamId === sheetData.homeTeamId) {
+        sheetData.homeScore++;
+      } else {
+        sheetData.awayScore++;
+      }
+
+      sheetData.incidents.push({
+        type: 'goal',
+        minute: data.minute || 0,
+        playerName: data.playerName,
+        teamId: data.teamId,
+        timestamp: new Date()
+      });
+    } else if (action === 'yellow_card' || action === 'red_card') {
+      sheetData.incidents.push({
+        type: action,
+        minute: data.minute || 0,
+        playerName: data.playerName,
+        teamId: data.teamId,
+        timestamp: new Date()
+      });
+    } else if (action === '1pt' || action === '2pt') {
+      const points = action === '1pt' ? 1 : 2;
+      sheetData.homeScore = sheetData.homeScore || 0;
+      sheetData.awayScore = sheetData.awayScore || 0;
+
+      if (data.teamId === sheetData.homeTeamId) {
+        sheetData.homeScore += points;
+      } else {
+        sheetData.awayScore += points;
+      }
+
+      sheetData.incidents.push({
+        type: action,
+        minute: data.minute || 0,
+        playerName: data.playerName,
+        teamId: data.teamId,
+        points,
+        timestamp: new Date()
+      });
+    } else if (action === 'foul') {
+      sheetData.incidents.push({
+        type: 'foul',
+        minute: data.minute || 0,
+        playerName: data.playerName,
+        teamId: data.teamId,
+        timestamp: new Date()
+      });
+    } else if (action === 'undo') {
+      if (sheetData.incidents.length > 0) {
+        const last = sheetData.incidents[sheetData.incidents.length - 1];
+        if (last.type === 'goal' || last.type === '1pt' || last.type === '2pt') {
+          const points = last.type === 'goal' || last.type === '1pt' ? 1 : 2;
+          if (last.teamId === sheetData.homeTeamId) {
+            sheetData.homeScore -= points;
+          } else {
+            sheetData.awayScore -= points;
+          }
+        }
+        sheetData.incidents.pop();
+      }
+    }
+
+    // Save sheet
+    if (existing.length > 0) {
       await query(
-        'UPDATE match_sheets SET incidents = ?, status = ? WHERE match_id = ?',
-        [JSON.stringify(incidents), status, matchId]
+        'UPDATE match_sheets SET incidents = ?, home_score = ?, away_score = ? WHERE match_id = ?',
+        [JSON.stringify(sheetData), sheetData.homeScore, sheetData.awayScore, matchId]
       );
     } else {
       await query(
-        'INSERT INTO match_sheets (match_id, incidents, status) VALUES (?, ?, ?)',
-        [matchId, JSON.stringify(incidents), status]
+        'INSERT INTO match_sheets (match_id, incidents, home_score, away_score, status) VALUES (?, ?, ?, ?, ?)',
+        [matchId, JSON.stringify(sheetData), sheetData.homeScore, sheetData.awayScore, 'actiu']
       );
     }
 
-    // If closing sheet, update match status
-    if (status === 'tancada' || status === 'immutable') {
-      await query('UPDATE matches SET status = ? WHERE id = ?', ['finalitzat', matchId]);
-    }
-
-    res.json({ message: 'Match sheet updated' });
+    res.json({
+      homeScore: sheetData.homeScore,
+      awayScore: sheetData.awayScore,
+      incidents: sheetData.incidents.length
+    });
   } catch (error) {
     console.error('Error updating match sheet:', error);
     res.status(500).json({ error: 'Failed to update match sheet' });
   }
 });
 
-// GET /api/arbitre/match/:matchId/sheet - Get match sheet
+// GET /api/arbitre/match/:matchId/sheet - Get match sheet with full details
 router.get('/match/:matchId/sheet', verifyToken, requireRole(['arbitre']), async (req: AuthRequest, res) => {
+  try {
+    const { matchId } = req.params;
+
+    const sheets = await query(
+      'SELECT * FROM match_sheets WHERE match_id = ?',
+      [matchId]
+    ) as any[];
+
+    if (sheets.length === 0) {
+      // Return empty sheet structure
+      const matches = await query(
+        'SELECT * FROM matches WHERE id = ?',
+        [matchId]
+      ) as any[];
+
+      if (matches.length === 0) {
+        return res.status(404).json({ error: 'Match not found' });
+      }
+
+      const match = matches[0];
+      return res.json({
+        matchId,
+        homeTeamId: match.home_team_id,
+        awayTeamId: match.away_team_id,
+        sport: match.sport || 'futsal',
+        homeScore: 0,
+        awayScore: 0,
+        status: 'actiu',
+        incidents: [],
+        startTime: new Date()
+      });
+    }
+
+    const sheet = sheets[0];
+    const sheetData = JSON.parse(sheet.incidents || '{}');
+
+    // Ensure proper structure with DB values
+    res.json({
+      matchId: sheet.match_id,
+      homeTeamId: sheet.home_team_id || sheetData.homeTeamId,
+      awayTeamId: sheet.away_team_id || sheetData.awayTeamId,
+      sport: sheetData.sport || 'futsal',
+      homeScore: sheet.home_score || sheetData.homeScore || 0,
+      awayScore: sheet.away_score || sheetData.awayScore || 0,
+      status: sheet.status || 'actiu',
+      incidents: sheetData.incidents || [],
+      startTime: sheet.created_at || new Date()
+    });
+  } catch (error) {
+    console.error('Error fetching match sheet:', error);
+    res.status(500).json({ error: 'Failed to fetch match sheet' });
+  }
+});
+
+// POST /api/arbitre/match/:matchId/finalize - Close match sheet
+router.post('/match/:matchId/finalize', verifyToken, requireRole(['arbitre']), async (req: AuthRequest, res) => {
+  try {
+    const { matchId } = req.params;
+
+    // Update sheet status to tancat
+    await query(
+      'UPDATE match_sheets SET status = ? WHERE match_id = ?',
+      ['tancat', matchId]
+    );
+
+    // Update match status to finalitzat
+    await query(
+      'UPDATE matches SET status = ? WHERE id = ?',
+      ['finalitzat', matchId]
+    );
+
+    res.json({ message: 'Match finalized', status: 'tancat' });
+  } catch (error) {
+    console.error('Error finalizing match:', error);
+    res.status(500).json({ error: 'Failed to finalize match' });
+  }
+});
+
+// POST /api/arbitre/match/:matchId/pdf - Generate PDF of match sheet
+router.post('/match/:matchId/pdf', verifyToken, requireRole(['arbitre']), async (req: AuthRequest, res) => {
   try {
     const { matchId } = req.params;
 
@@ -137,10 +328,60 @@ router.get('/match/:matchId/sheet', verifyToken, requireRole(['arbitre']), async
       return res.status(404).json({ error: 'Match sheet not found' });
     }
 
-    res.json(sheets[0]);
+    const sheet = sheets[0];
+    const sheetData = JSON.parse(sheet.incidents || '{}');
+
+    // Get team names
+    const teams = await query(
+      'SELECT id, name FROM teams WHERE id IN (?, ?)',
+      [sheet.home_team_id, sheet.away_team_id]
+    ) as any[];
+
+    const homeTeamName = teams.find(t => t.id === sheet.home_team_id)?.name || 'Home Team';
+    const awayTeamName = teams.find(t => t.id === sheet.away_team_id)?.name || 'Away Team';
+
+    // Get arbitre name
+    const arbitres = await query(
+      'SELECT name FROM users WHERE id = ? AND role = ?',
+      [req.userId, 'arbitre']
+    ) as any[];
+
+    const arbitreName = arbitres.length > 0 ? arbitres[0].name : 'Unknown Arbitre';
+
+    // Generate PDF
+    const pdfBuffer = await generateMatchSheetPDF(
+      {
+        id: sheet.id,
+        matchId: parseInt(matchId),
+        homeTeamId: sheet.home_team_id,
+        awayTeamId: sheet.away_team_id,
+        sport: sheetData.sport || 'futsal',
+        homeScore: sheet.home_score || 0,
+        awayScore: sheet.away_score || 0,
+        status: sheet.status,
+        incidents: sheetData.incidents || [],
+        startTime: new Date(sheet.created_at)
+      },
+      homeTeamName,
+      awayTeamName,
+      arbitreName
+    );
+
+    // Save PDF to disk
+    const uploadsDir = path.join(process.cwd(), 'uploads', 'match_sheets');
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+
+    const filename = `acta_${matchId}_${Date.now()}.pdf`;
+    const filepath = path.join(uploadsDir, filename);
+    fs.writeFileSync(filepath, pdfBuffer);
+
+    // Send file
+    res.download(filepath, `acta_${matchId}.pdf`);
   } catch (error) {
-    console.error('Error fetching match sheet:', error);
-    res.status(500).json({ error: 'Failed to fetch match sheet' });
+    console.error('Error generating PDF:', error);
+    res.status(500).json({ error: 'Failed to generate PDF' });
   }
 });
 

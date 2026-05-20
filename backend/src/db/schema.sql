@@ -155,13 +155,20 @@ CREATE TABLE matches (
 CREATE TABLE match_sheets (
   id INT PRIMARY KEY AUTO_INCREMENT,
   match_id INT NOT NULL UNIQUE,
+  home_team_id INT,
+  away_team_id INT,
   incidents JSON,
-  status ENUM('en_curs', 'tancada', 'immutable') DEFAULT 'en_curs',
+  home_score INT DEFAULT 0,
+  away_score INT DEFAULT 0,
+  status ENUM('actiu', 'tancat', 'immutable') DEFAULT 'actiu',
   pdf_url VARCHAR(500),
   closed_at TIMESTAMP NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE,
-  INDEX idx_status (status)
+  FOREIGN KEY (home_team_id) REFERENCES teams(id) ON DELETE SET NULL,
+  FOREIGN KEY (away_team_id) REFERENCES teams(id) ON DELETE SET NULL,
+  INDEX idx_status (status),
+  INDEX idx_match_id (match_id)
 );
 
 -- Invitations table: Player invitations to teams via email
