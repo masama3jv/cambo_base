@@ -1,24 +1,27 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { AlertCircle, CheckCircle, Undo2, Download, Lock } from 'lucide-react';
+import { AlertCircle, CheckCircle, Undo2, Download, Lock, X } from 'lucide-react';
 
 interface Incident {
   type: string;
-  minute: number;
-  playerName: string;
-  teamId: number;
+  minute?: number;
+  playerName?: string;
+  teamId?: number;
   timestamp: string;
   points?: number;
+  set_number?: number;
+  home_score?: number;
+  away_score?: number;
 }
 
 interface MatchSheetData {
   matchId: number;
   homeTeamId: number;
   awayTeamId: number;
-  sport: 'futsal' | 'basket' | 'padel';
+  sport: 'futsal' | 'basquet3x3' | 'padel';
   homeScore: number;
   awayScore: number;
-  status: 'actiu' | 'tancat';
+  status: 'actiu' | 'tancat' | 'immutable';
   incidents: Incident[];
   startTime: string;
 }
@@ -37,12 +40,19 @@ export default function ArbitreMatchSheet() {
   const [sheetData, setSheetData] = useState<MatchSheetData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [selectedTeam, setSelectedTeam] = useState<number | null>(null);
-  const [selectedPlayer, setSelectedPlayer] = useState<string>('');
+  
+  // States for Incident Recording
   const [minute, setMinute] = useState(0);
   const [message, setMessage] = useState('');
   const [finalizingMatch, setFinalizingMatch] = useState(false);
   const [generatingPDF, setGeneratingPDF] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+
+  // Sport Specific States
+  const [selectedHomePlayer, setSelectedHomePlayer] = useState<string>('');
+  const [selectedAwayPlayer, setSelectedAwayPlayer] = useState<string>('');
+  const [padelHomeScore, setPadelHomeScore] = useState(0);
+  const [padelAwayScore, setPadelAwayScore] = useState(0);
 
   useEffect(() => {
     fetchMatchData();
@@ -60,7 +70,6 @@ export default function ArbitreMatchSheet() {
       const data = await response.json();
       setMatchInfo(data);
 
-      // Fetch sheet data
       const sheetResponse = await fetch(`/api/arbitre/match/${matchId}/sheet`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -77,9 +86,9 @@ export default function ArbitreMatchSheet() {
     }
   };
 
-  const recordIncident = async (action: string, points?: number) => {
-    if (!sheetData || !selectedPlayer || !selectedTeam) {
-      setMessage('Selecciona jugador i equip');
+  const recordIncident = async (action: string, teamId: number, playerName?: string, points?: number, extraData?: any) => {
+    if (action !== 'set_result' && !playerName) {
+      setMessage('Selecciona un jugador abans de registrar');
       setTimeout(() => setMessage(''), 3000);
       return;
     }
@@ -95,10 +104,11 @@ export default function ArbitreMatchSheet() {
         body: JSON.stringify({
           action,
           data: {
-            playerName: selectedPlayer,
-            teamId: selectedTeam,
+            playerName,
+            teamId,
             minute,
-            points
+            points,
+            ...extraData
           }
         })
       });
@@ -109,10 +119,17 @@ export default function ArbitreMatchSheet() {
           ...prev,
           homeScore: result.homeScore,
           awayScore: result.awayScore,
-          incidents: [...(prev.incidents || [])]
+          incidents: [...(prev.incidents || [])] // Quick trigger to re-render, we re-fetch below ideally
         } : null);
-        setMessage(`${action} registrat`);
+        
+        await fetchMatchData(); // Ensure we get the fresh accurate list
+        
+        setMessage(`${action === 'set_result' ? 'Set' : action} registrat`);
         setTimeout(() => setMessage(''), 2000);
+        
+        // Reset player selection to encourage clean slate per action
+        setSelectedHomePlayer('');
+        setSelectedAwayPlayer('');
       }
     } catch (err) {
       setError('Error registrant incident');
@@ -145,35 +162,31 @@ export default function ArbitreMatchSheet() {
   };
 
   const finalizeMatch = async () => {
-    if (!window.confirm('Estàs segur que vols tancar l\'acta? No es podrà modificar més tard.')) {
-      return;
-    }
-
     setFinalizingMatch(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/arbitre/match/${matchId}/finalize`, {
+      const response = await fetch(`/api/arbitre/match/${matchId}/close`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` }
       });
 
       if (response.ok) {
-        setSheetData(prev => prev ? { ...prev, status: 'tancat' } : null);
+        setSheetData(prev => prev ? { ...prev, status: 'immutable' } : null);
         setMessage('Acta tancada correctament');
       }
     } catch (err) {
       setError('Error tancant acta');
     } finally {
       setFinalizingMatch(false);
+      setShowConfirmModal(false);
     }
   };
 
-  const generatePDF = async () => {
+  const downloadPDF = async () => {
     setGeneratingPDF(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/arbitre/match/${matchId}/pdf`, {
-        method: 'POST',
+      const response = await fetch(`/api/match-sheets/${matchId}/pdf`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -184,9 +197,11 @@ export default function ArbitreMatchSheet() {
         a.href = url;
         a.download = `acta_${matchId}.pdf`;
         a.click();
+      } else {
+        setError("No s'ha pogut descarregar el PDF");
       }
     } catch (err) {
-      setError('Error generant PDF');
+      setError('Error descarregant PDF');
     } finally {
       setGeneratingPDF(false);
     }
@@ -197,197 +212,216 @@ export default function ArbitreMatchSheet() {
   if (!matchInfo || !sheetData) return <div className="p-4 text-center">Error carregant dades</div>;
 
   const sport = sheetData.sport || 'futsal';
-  const isTeamA = (id: number) => id === sheetData.homeTeamId;
-  const getTeamName = (id: number) => isTeamA(id) ? matchInfo.match.home_team_name : matchInfo.match.away_team_name;
-  const getPlayers = (id: number) => isTeamA(id) ? matchInfo.homePlayers : matchInfo.awayPlayers;
+  const isClosed = sheetData.status === 'tancat' || sheetData.status === 'immutable';
 
+  // Format incidents for display
+  const renderIncidentString = (incident: Incident, index: number) => {
+    if (incident.type === 'set_result') {
+      return `${index + 1}. 📊 Set ${incident.set_number}: ${matchInfo.match.home_team_name} ${incident.home_score} - ${incident.away_score} ${matchInfo.match.away_team_name}`;
+    } else {
+      const teamName = incident.teamId === sheetData.homeTeamId ? matchInfo.match.home_team_name : matchInfo.match.away_team_name;
+      const iconMap: any = {
+        goal: '⚽', yellow_card: '🟨', red_card: '🟥',
+        '1pt': '1️⃣', '2pt': '2️⃣', foul: '🚫', timeout: '⏱️', injury: '🩹'
+      };
+      const icon = iconMap[incident.type] || '';
+      return `${index + 1}. [${incident.minute}'] ${icon} ${incident.playerName} (${teamName}) - ${incident.type}`;
+    }
+  };
+
+  // ---------------------------------------------------------------------------
+  // ACTA TANCADA SCREEN
+  // ---------------------------------------------------------------------------
+  if (isClosed) {
+    return (
+      <div className="min-h-screen bg-[#F1EFE8] flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8 text-center">
+          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <CheckCircle size={40} className="text-green-600" />
+          </div>
+          <h1 className="text-2xl font-bold text-[#2C2C2A] mb-2">Acta Tancada</h1>
+          <p className="text-[#5F5E5A] mb-8">
+            El partit {matchInfo.match.home_team_name} vs {matchInfo.match.away_team_name} s'ha registrat correctament i no es pot modificar.
+          </p>
+          
+          <div className="space-y-4">
+            <button
+              onClick={downloadPDF}
+              disabled={generatingPDF}
+              className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-[#D85A30] hover:bg-[#C24620] text-white rounded-lg font-semibold transition"
+            >
+              <Download size={20} />
+              {generatingPDF ? 'Descarregant...' : 'Descarregar PDF'}
+            </button>
+            <button
+              onClick={() => navigate('/dashboard')}
+              className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-semibold transition"
+            >
+              Tornar al dashboard
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // ACTIVE MATCH SHEET SCREEN
+  // ---------------------------------------------------------------------------
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#FAECE7] to-white p-2 sm:p-4">
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-4xl mx-auto pb-24">
         {/* Header */}
         <div className="bg-white rounded-lg shadow-sm p-4 mb-4">
           <h1 className="text-xl sm:text-2xl font-bold text-[#D85A30] text-center">
             Acta de Partit
           </h1>
-          <p className="text-center text-gray-600 text-sm">Match ID: {matchId}</p>
+          <p className="text-center text-gray-600 text-sm">ID: {matchId} · {sport.toUpperCase()}</p>
         </div>
 
         {/* Score Board */}
-        <div className="bg-white rounded-lg shadow-md p-4 mb-4">
+        <div className="bg-white rounded-lg shadow-md p-6 mb-4">
           <div className="flex items-center justify-between">
             <div className="flex-1 text-center">
-              <p className="text-sm text-gray-600 mb-2">{matchInfo.match.home_team_name}</p>
-              <p className="text-4xl sm:text-5xl font-bold text-[#D85A30]">
-                {sheetData.homeScore}
-              </p>
+              <p className="text-sm font-semibold text-gray-700 mb-2">{matchInfo.match.home_team_name}</p>
+              <p className="text-5xl font-bold text-[#D85A30]">{sheetData.homeScore}</p>
             </div>
             <div className="px-4 text-center">
-              <p className="text-2xl font-bold text-gray-400">-</p>
-              <p className="text-xs text-gray-500 uppercase mt-1">{sport}</p>
+              <p className="text-3xl font-bold text-gray-300">-</p>
             </div>
             <div className="flex-1 text-center">
-              <p className="text-sm text-gray-600 mb-2">{matchInfo.match.away_team_name}</p>
-              <p className="text-4xl sm:text-5xl font-bold text-[#D85A30]">
-                {sheetData.awayScore}
-              </p>
+              <p className="text-sm font-semibold text-gray-700 mb-2">{matchInfo.match.away_team_name}</p>
+              <p className="text-5xl font-bold text-[#D85A30]">{sheetData.awayScore}</p>
             </div>
           </div>
         </div>
+
+        {/* Universal Controls: Minute Input */}
+        {sport !== 'padel' && (
+          <div className="bg-white rounded-lg shadow-md p-4 mb-4">
+             <label className="text-sm font-bold text-gray-700 block mb-2 text-center">Minut Actual del Partit</label>
+             <input
+               type="number" min="0" max="120"
+               value={minute}
+               onChange={(e) => setMinute(parseInt(e.target.value))}
+               className="w-full max-w-[150px] mx-auto block px-4 py-3 border-2 border-gray-300 rounded-lg text-center text-xl font-bold focus:border-[#D85A30] outline-none"
+             />
+          </div>
+        )}
 
         {/* Sport-Specific Controls */}
         <div className="bg-white rounded-lg shadow-md p-4 mb-4">
-          <h2 className="font-semibold text-gray-800 mb-3">Registrar Incident</h2>
-
-          {/* Team Selection */}
-          <div className="mb-3">
-            <label className="text-sm font-medium text-gray-700 block mb-2">Equip</label>
-            <div className="flex gap-2">
-              {[sheetData.homeTeamId, sheetData.awayTeamId].map((teamId) => (
-                <button
-                  key={teamId}
-                  onClick={() => setSelectedTeam(teamId)}
-                  className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition ${
-                    selectedTeam === teamId
-                      ? 'bg-[#D85A30] text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  {getTeamName(teamId)}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Player Selection */}
-          {selectedTeam && (
-            <div className="mb-3">
-              <label className="text-sm font-medium text-gray-700 block mb-2">Jugador</label>
-              <select
-                value={selectedPlayer}
-                onChange={(e) => setSelectedPlayer(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+          {sport === 'padel' ? (
+            // -------------------- PADEL UI --------------------
+            <div className="space-y-6">
+              <h2 className="font-bold text-gray-800 text-center border-b pb-2">Registrar Nou Set</h2>
+              <div className="flex items-center justify-between gap-6 max-w-sm mx-auto">
+                <div className="flex-1 text-center">
+                  <p className="text-xs font-medium text-gray-500 mb-2 truncate">{matchInfo.match.home_team_name}</p>
+                  <input 
+                    type="number" min="0" max="7" 
+                    value={padelHomeScore} 
+                    onChange={(e) => setPadelHomeScore(parseInt(e.target.value))}
+                    className="w-full text-center py-4 border-2 rounded-xl text-3xl font-bold"
+                  />
+                </div>
+                <div className="text-gray-300 font-bold text-2xl">-</div>
+                <div className="flex-1 text-center">
+                  <p className="text-xs font-medium text-gray-500 mb-2 truncate">{matchInfo.match.away_team_name}</p>
+                  <input 
+                    type="number" min="0" max="7" 
+                    value={padelAwayScore} 
+                    onChange={(e) => setPadelAwayScore(parseInt(e.target.value))}
+                    className="w-full text-center py-4 border-2 rounded-xl text-3xl font-bold"
+                  />
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  const setNum = sheetData.incidents.filter(i => i.type === 'set_result').length + 1;
+                  recordIncident('set_result', sheetData.homeTeamId, undefined, undefined, {
+                    set_number: setNum,
+                    home_score: padelHomeScore,
+                    away_score: padelAwayScore
+                  });
+                  setPadelHomeScore(0);
+                  setPadelAwayScore(0);
+                }}
+                className="w-full bg-green-500 hover:bg-green-600 text-white py-4 rounded-xl font-bold text-lg shadow-sm"
               >
-                <option value="">Selecciona jugador</option>
-                {getPlayers(selectedTeam).map((p) => (
-                  <option key={p.id} value={p.name}>{p.name}</option>
-                ))}
-              </select>
+                Afegir Set {sheetData.incidents.filter(i => i.type === 'set_result').length + 1}
+              </button>
             </div>
-          )}
-
-          {/* Minute Input */}
-          <div className="mb-3">
-            <label className="text-sm font-medium text-gray-700 block mb-2">Minut</label>
-            <input
-              type="number"
-              min="0"
-              max="90"
-              value={minute}
-              onChange={(e) => setMinute(parseInt(e.target.value))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-            />
-          </div>
-
-          {/* Sport-Specific Buttons */}
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {sport === 'futsal' && (
-              <>
-                <button
-                  onClick={() => recordIncident('goal')}
-                  className="bg-green-500 hover:bg-green-600 text-white py-3 rounded-lg font-semibold text-sm"
-                >
-                  ⚽ Gol
-                </button>
-                <button
-                  onClick={() => recordIncident('yellow_card')}
-                  className="bg-yellow-500 hover:bg-yellow-600 text-white py-3 rounded-lg font-semibold text-sm"
-                >
-                  🟨 Taronja
-                </button>
-                <button
-                  onClick={() => recordIncident('red_card')}
-                  className="bg-red-500 hover:bg-red-600 text-white py-3 rounded-lg font-semibold text-sm"
-                >
-                  🟥 Vermella
-                </button>
-                <button
-                  onClick={() => recordIncident('timeout')}
-                  className="bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-lg font-semibold text-sm"
-                >
-                  ⏱️ Time-out
-                </button>
-              </>
-            )}
-            {sport === 'basket' && (
-              <>
-                <button
-                  onClick={() => recordIncident('1pt', 1)}
-                  className="bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-lg font-semibold text-sm"
-                >
-                  1️⃣ Punt
-                </button>
-                <button
-                  onClick={() => recordIncident('2pt', 2)}
-                  className="bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-semibold text-sm"
-                >
-                  2️⃣ Puntada
-                </button>
-                <button
-                  onClick={() => recordIncident('foul')}
-                  className="bg-yellow-500 hover:bg-yellow-600 text-white py-3 rounded-lg font-semibold text-sm"
-                >
-                  🚫 Falta
-                </button>
-                <button
-                  onClick={() => recordIncident('timeout')}
-                  className="bg-purple-500 hover:bg-purple-600 text-white py-3 rounded-lg font-semibold text-sm"
-                >
-                  ⏱️ T.O.
-                </button>
-              </>
-            )}
-            {sport === 'padel' && (
-              <>
-                <button
-                  onClick={() => recordIncident('set_score')}
-                  className="col-span-2 bg-green-500 hover:bg-green-600 text-white py-3 rounded-lg font-semibold text-sm"
-                >
-                  📊 Set
-                </button>
-                <button
-                  onClick={() => recordIncident('injury')}
-                  className="col-span-2 bg-red-500 hover:bg-red-600 text-white py-3 rounded-lg font-semibold text-sm"
-                >
-                  🩹 Lesió
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* Incidents Log */}
-        <div className="bg-white rounded-lg shadow-md p-4 mb-4">
-          <h3 className="font-semibold text-gray-800 mb-3">Incidents ({sheetData.incidents.length})</h3>
-          {sheetData.incidents.length === 0 ? (
-            <p className="text-center text-gray-500 text-sm py-4">Cap incident registrat</p>
           ) : (
-            <div className="space-y-2 max-h-48 overflow-y-auto">
-              {sheetData.incidents.map((incident, idx) => (
-                <div key={idx} className="flex items-center justify-between text-sm p-2 bg-gray-50 rounded">
-                  <span>
-                    <span className="font-semibold">[{incident.minute}']</span>{' '}
-                    <span className="text-gray-700">{incident.playerName}</span> - {incident.type}
-                  </span>
-                  {sheetData.status === 'actiu' && (
-                    <button
-                      onClick={undoLastIncident}
-                      className="text-red-500 hover:text-red-700"
-                    >
-                      ✕
-                    </button>
+            // -------------------- FUTSAL / BASKET 2-COLUMN UI --------------------
+            <div className="grid grid-cols-2 gap-4">
+              
+              {/* HOME TEAM COLUMN */}
+              <div className="bg-gray-50 p-3 rounded-lg border">
+                <h3 className="font-bold text-sm text-center mb-3 text-gray-800 truncate">{matchInfo.match.home_team_name}</h3>
+                
+                <select
+                  value={selectedHomePlayer}
+                  onChange={(e) => setSelectedHomePlayer(e.target.value)}
+                  className="w-full px-2 py-3 border border-gray-300 rounded-lg text-sm mb-4 bg-white font-medium"
+                >
+                  <option value="">-- Jugador --</option>
+                  {matchInfo.homePlayers.map((p) => (
+                    <option key={p.id} value={p.name}>{p.name}</option>
+                  ))}
+                </select>
+
+                <div className="space-y-2">
+                  {sport === 'futsal' && (
+                    <>
+                      <button onClick={() => recordIncident('goal', sheetData.homeTeamId, selectedHomePlayer)} className="w-full bg-green-500 hover:bg-green-600 text-white py-3 rounded shadow-sm font-bold text-sm">⚽ Gol</button>
+                      <button onClick={() => recordIncident('yellow_card', sheetData.homeTeamId, selectedHomePlayer)} className="w-full bg-yellow-500 hover:bg-yellow-600 text-white py-3 rounded shadow-sm font-bold text-sm">🟨 Taronja</button>
+                      <button onClick={() => recordIncident('red_card', sheetData.homeTeamId, selectedHomePlayer)} className="w-full bg-red-500 hover:bg-red-600 text-white py-3 rounded shadow-sm font-bold text-sm">🟥 Vermella</button>
+                    </>
+                  )}
+                  {sport === 'basquet3x3' && (
+                    <>
+                      <button onClick={() => recordIncident('1pt', sheetData.homeTeamId, selectedHomePlayer, 1)} className="w-full bg-blue-500 hover:bg-blue-600 text-white py-3 rounded shadow-sm font-bold text-sm">1️⃣ Punt</button>
+                      <button onClick={() => recordIncident('2pt', sheetData.homeTeamId, selectedHomePlayer, 2)} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded shadow-sm font-bold text-sm">2️⃣ Punts</button>
+                      <button onClick={() => recordIncident('foul', sheetData.homeTeamId, selectedHomePlayer)} className="w-full bg-orange-500 hover:bg-orange-600 text-white py-3 rounded shadow-sm font-bold text-sm">🚫 Falta</button>
+                    </>
                   )}
                 </div>
-              ))}
+              </div>
+
+              {/* AWAY TEAM COLUMN */}
+              <div className="bg-gray-50 p-3 rounded-lg border">
+                <h3 className="font-bold text-sm text-center mb-3 text-gray-800 truncate">{matchInfo.match.away_team_name}</h3>
+                
+                <select
+                  value={selectedAwayPlayer}
+                  onChange={(e) => setSelectedAwayPlayer(e.target.value)}
+                  className="w-full px-2 py-3 border border-gray-300 rounded-lg text-sm mb-4 bg-white font-medium"
+                >
+                  <option value="">-- Jugador --</option>
+                  {matchInfo.awayPlayers.map((p) => (
+                    <option key={p.id} value={p.name}>{p.name}</option>
+                  ))}
+                </select>
+
+                <div className="space-y-2">
+                  {sport === 'futsal' && (
+                    <>
+                      <button onClick={() => recordIncident('goal', sheetData.awayTeamId, selectedAwayPlayer)} className="w-full bg-green-500 hover:bg-green-600 text-white py-3 rounded shadow-sm font-bold text-sm">⚽ Gol</button>
+                      <button onClick={() => recordIncident('yellow_card', sheetData.awayTeamId, selectedAwayPlayer)} className="w-full bg-yellow-500 hover:bg-yellow-600 text-white py-3 rounded shadow-sm font-bold text-sm">🟨 Taronja</button>
+                      <button onClick={() => recordIncident('red_card', sheetData.awayTeamId, selectedAwayPlayer)} className="w-full bg-red-500 hover:bg-red-600 text-white py-3 rounded shadow-sm font-bold text-sm">🟥 Vermella</button>
+                    </>
+                  )}
+                  {sport === 'basquet3x3' && (
+                    <>
+                      <button onClick={() => recordIncident('1pt', sheetData.awayTeamId, selectedAwayPlayer, 1)} className="w-full bg-blue-500 hover:bg-blue-600 text-white py-3 rounded shadow-sm font-bold text-sm">1️⃣ Punt</button>
+                      <button onClick={() => recordIncident('2pt', sheetData.awayTeamId, selectedAwayPlayer, 2)} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded shadow-sm font-bold text-sm">2️⃣ Punts</button>
+                      <button onClick={() => recordIncident('foul', sheetData.awayTeamId, selectedAwayPlayer)} className="w-full bg-orange-500 hover:bg-orange-600 text-white py-3 rounded shadow-sm font-bold text-sm">🚫 Falta</button>
+                    </>
+                  )}
+                </div>
+              </div>
+
             </div>
           )}
         </div>
@@ -399,55 +433,90 @@ export default function ArbitreMatchSheet() {
             {message}
           </div>
         )}
-
-        {/* Action Buttons */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
-          <button
-            onClick={undoLastIncident}
-            disabled={sheetData.incidents.length === 0 || sheetData.status === 'tancat'}
-            className="flex items-center justify-center gap-2 py-3 px-4 bg-gray-100 hover:bg-gray-200 disabled:bg-gray-50 disabled:text-gray-400 text-gray-700 rounded-lg font-semibold"
-          >
-            <Undo2 size={20} />
-            Desfer
-          </button>
-          <button
-            onClick={generatePDF}
-            disabled={generatingPDF || sheetData.status === 'actiu'}
-            className="flex items-center justify-center gap-2 py-3 px-4 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white rounded-lg font-semibold"
-          >
-            <Download size={20} />
-            PDF
-          </button>
-        </div>
-
-        {/* Close Match Button */}
-        <button
-          onClick={finalizeMatch}
-          disabled={finalizingMatch || sheetData.status === 'tancat'}
-          className={`w-full py-4 px-4 rounded-lg font-bold text-lg flex items-center justify-center gap-2 transition ${
-            sheetData.status === 'tancat'
-              ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-              : 'bg-[#D85A30] hover:bg-[#C24620] text-white'
-          }`}
-        >
-          {sheetData.status === 'tancat' ? (
-            <>
-              <Lock size={20} />
-              Acta Tancada
-            </>
-          ) : (
-            'Tancar Acta'
-          )}
-        </button>
-
-        {/* Error Message */}
+        
         {error && (
-          <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-800">
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-800">
             <AlertCircle size={18} />
             {error}
           </div>
         )}
+
+        {/* Incidents Log */}
+        <div className="bg-white rounded-lg shadow-md p-4 mb-4">
+          <div className="flex items-center justify-between mb-3 border-b pb-2">
+            <h3 className="font-semibold text-gray-800">Registre ({sheetData.incidents.length})</h3>
+            <button
+              onClick={undoLastIncident}
+              disabled={sheetData.incidents.length === 0}
+              className="flex items-center gap-1 text-sm text-red-500 hover:text-red-700 disabled:text-gray-300 font-medium"
+            >
+              <Undo2 size={16} />
+              Desfer últim
+            </button>
+          </div>
+          
+          {sheetData.incidents.length === 0 ? (
+            <p className="text-center text-gray-500 text-sm py-4">Cap incident registrat</p>
+          ) : (
+            <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
+              {[...sheetData.incidents].reverse().map((incident, idx) => (
+                <div key={idx} className="text-sm p-3 bg-gray-50 border border-gray-100 rounded-lg text-gray-700">
+                  {renderIncidentString(incident, sheetData.incidents.length - 1 - idx)}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* Fixed Bottom Bar for Tancar Acta */}
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
+        <div className="max-w-4xl mx-auto">
+          <button
+            onClick={() => setShowConfirmModal(true)}
+            className="w-full py-4 px-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 bg-[#D85A30] hover:bg-[#C24620] text-white shadow-md transition"
+          >
+            Tancar Acta
+          </button>
+        </div>
+      </div>
+
+      {/* Confirmation Modal */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm relative">
+            <button 
+              onClick={() => setShowConfirmModal(false)}
+              className="absolute right-4 top-4 text-gray-400 hover:text-gray-600"
+            >
+              <X size={24} />
+            </button>
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4 mt-2">
+              <AlertCircle size={32} className="text-red-600" />
+            </div>
+            <h2 className="text-xl font-bold text-center text-gray-800 mb-2">Tancar Acta?</h2>
+            <p className="text-center text-gray-600 mb-8">
+              Aquesta acció és irreversible. L'acta es tancarà permanentment i es generarà el PDF oficial.
+            </p>
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setShowConfirmModal(false)}
+                className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg font-semibold"
+                disabled={finalizingMatch}
+              >
+                Cancel·lar
+              </button>
+              <button 
+                onClick={finalizeMatch}
+                className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold flex justify-center items-center"
+                disabled={finalizingMatch}
+              >
+                {finalizingMatch ? 'Tancant...' : 'Confirmar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

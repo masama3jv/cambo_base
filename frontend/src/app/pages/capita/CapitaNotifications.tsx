@@ -35,7 +35,6 @@ export default function CapitaNotifications() {
         setNotifications(data.notifications || []);
       } catch (err) {
         console.error('Error:', err);
-        setError('No hi ha notificacions disponibles');
         setNotifications([]);
       } finally {
         setIsLoading(false);

@@ -290,42 +290,19 @@ router.get('/match/:matchId/sheet', verifyToken, requireRole(['arbitre']), async
   }
 });
 
-// POST /api/arbitre/match/:matchId/finalize - Close match sheet
-router.post('/match/:matchId/finalize', verifyToken, requireRole(['arbitre']), async (req: AuthRequest, res) => {
+// POST /api/arbitre/match/:matchId/close - Close match sheet and generate PDF
+router.post('/match/:matchId/close', verifyToken, requireRole(['arbitre']), async (req: AuthRequest, res) => {
   try {
     const { matchId } = req.params;
 
-    // Update sheet status to tancat
-    await query(
-      'UPDATE match_sheets SET status = ? WHERE match_id = ?',
-      ['tancat', matchId]
-    );
-
-    // Update match status to finalitzat
-    await query(
-      'UPDATE matches SET status = ? WHERE id = ?',
-      ['finalitzat', matchId]
-    );
-
-    res.json({ message: 'Match finalized', status: 'tancat' });
-  } catch (error) {
-    console.error('Error finalizing match:', error);
-    res.status(500).json({ error: 'Failed to finalize match' });
-  }
-});
-
-// POST /api/arbitre/match/:matchId/pdf - Generate PDF of match sheet
-router.post('/match/:matchId/pdf', verifyToken, requireRole(['arbitre']), async (req: AuthRequest, res) => {
-  try {
-    const { matchId } = req.params;
-
+    // Fetch full match sheet info for PDF
     const sheets = await query(
       'SELECT * FROM match_sheets WHERE match_id = ?',
       [matchId]
     ) as any[];
 
     if (sheets.length === 0) {
-      return res.status(404).json({ error: 'Match sheet not found' });
+      return res.status(404).json({ error: true, message: 'Match sheet not found' });
     }
 
     const sheet = sheets[0];
@@ -337,8 +314,8 @@ router.post('/match/:matchId/pdf', verifyToken, requireRole(['arbitre']), async 
       [sheet.home_team_id, sheet.away_team_id]
     ) as any[];
 
-    const homeTeamName = teams.find(t => t.id === sheet.home_team_id)?.name || 'Home Team';
-    const awayTeamName = teams.find(t => t.id === sheet.away_team_id)?.name || 'Away Team';
+    const homeTeamName = teams.find((t: any) => t.id === sheet.home_team_id)?.name || 'Home Team';
+    const awayTeamName = teams.find((t: any) => t.id === sheet.away_team_id)?.name || 'Away Team';
 
     // Get arbitre name
     const arbitres = await query(
@@ -358,9 +335,10 @@ router.post('/match/:matchId/pdf', verifyToken, requireRole(['arbitre']), async 
         sport: sheetData.sport || 'futsal',
         homeScore: sheet.home_score || 0,
         awayScore: sheet.away_score || 0,
-        status: sheet.status,
+        status: 'immutable',
         incidents: sheetData.incidents || [],
-        startTime: new Date(sheet.created_at)
+        startTime: new Date(sheet.created_at),
+        endTime: new Date()
       },
       homeTeamName,
       awayTeamName,
@@ -377,11 +355,53 @@ router.post('/match/:matchId/pdf', verifyToken, requireRole(['arbitre']), async 
     const filepath = path.join(uploadsDir, filename);
     fs.writeFileSync(filepath, pdfBuffer);
 
-    // Send file
+    const pdfUrl = `/uploads/match_sheets/${filename}`;
+
+    // Update sheet status to immutable and set pdf_url
+    await query(
+      'UPDATE match_sheets SET status = ?, pdf_url = ?, closed_at = NOW() WHERE match_id = ?',
+      ['immutable', pdfUrl, matchId]
+    );
+
+    // Update match status to finalitzat
+    await query(
+      'UPDATE matches SET status = ? WHERE id = ?',
+      ['finalitzat', matchId]
+    );
+
+    res.json({ message: 'Match closed successfully', status: 'immutable', pdfUrl });
+  } catch (error) {
+    console.error('Error closing match sheet:', error);
+    res.status(500).json({ error: true, message: 'Failed to close match sheet' });
+  }
+});
+
+// We keep a local GET /pdf route in arbitre.ts just in case, but we will also expose GET /api/match-sheets/:matchId/pdf in server.ts
+router.get('/match/:matchId/pdf', verifyToken, requireRole(['arbitre']), async (req: AuthRequest, res) => {
+  try {
+    const { matchId } = req.params;
+
+    const sheets = await query(
+      'SELECT pdf_url FROM match_sheets WHERE match_id = ? AND status = ?',
+      [matchId, 'immutable']
+    ) as any[];
+
+    if (sheets.length === 0 || !sheets[0].pdf_url) {
+      return res.status(404).json({ error: true, message: 'PDF not found' });
+    }
+
+    // Replace forward slashes to ensure path works on all OS correctly
+    const relativePath = sheets[0].pdf_url.startsWith('/') ? sheets[0].pdf_url.substring(1) : sheets[0].pdf_url;
+    const filepath = path.join(process.cwd(), relativePath);
+
+    if (!fs.existsSync(filepath)) {
+      return res.status(404).json({ error: true, message: 'PDF file not found on disk' });
+    }
+
     res.download(filepath, `acta_${matchId}.pdf`);
   } catch (error) {
-    console.error('Error generating PDF:', error);
-    res.status(500).json({ error: 'Failed to generate PDF' });
+    console.error('Error fetching PDF:', error);
+    res.status(500).json({ error: true, message: 'Failed to fetch PDF' });
   }
 });
 

@@ -160,9 +160,10 @@ router.get('/documents', verifyToken, async (req: AuthRequest, res) => {
     const teams = await query('SELECT * FROM teams WHERE capita_id = ?', [req.userId]) as any[];
 
     if (teams.length === 0) {
-      return res.json({ 
+      return res.status(200).json({ 
         documents: [],
         noTeam: true,
+        noPlayers: false,
         message: 'Primer has de crear un equip'
       });
     }
@@ -176,8 +177,9 @@ router.get('/documents', verifyToken, async (req: AuthRequest, res) => {
     `, [teamId, req.userId]) as any[];
 
     if (players.length > 0 && players[0].count === 0) {
-      return res.json({
+      return res.status(200).json({
         documents: [],
+        noTeam: false,
         noPlayers: true,
         message: 'Afegeix jugadors abans de pujar documents'
       });
@@ -199,14 +201,19 @@ router.get('/documents', verifyToken, async (req: AuthRequest, res) => {
       ORDER BY d.user_id, d.document_type
     `, [teamId]);
 
-    res.json({
+    res.status(200).json({
       documents: documents || [],
       noTeam: false,
       noPlayers: false
     });
   } catch (error) {
     console.error('Error fetching documents:', error);
-    res.status(500).json({ error: 'Failed to fetch documents' });
+    res.status(200).json({ 
+      documents: [],
+      noTeam: false,
+      noPlayers: false,
+      error: 'Error loading documents'
+    });
   }
 });
 

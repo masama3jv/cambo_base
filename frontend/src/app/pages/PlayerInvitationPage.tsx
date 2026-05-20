@@ -4,6 +4,8 @@ import { Card } from '../components/Card';
 import { Input } from '../components/Input';
 import { Button } from '../components/Button';
 import { Badge } from '../components/Badge';
+import { useAuth } from '../context/AuthContext';
+import authService from '../services/authService';
 
 interface InvitationInfo {
   email: string;
@@ -14,6 +16,7 @@ interface InvitationInfo {
 export default function PlayerInvitationPage() {
   const navigate = useNavigate();
   const { token } = useParams();
+  const { refreshUser } = useAuth();
   const [formData, setFormData] = useState({
     name: '',
     password: '',
@@ -27,13 +30,16 @@ export default function PlayerInvitationPage() {
     const fetchInvitation = async () => {
       try {
         setIsLoading(true);
-        // API call to validate invitation token and get invitation details
-        const response = await fetch(`/api/invitations/${token}`);
+        const response = await fetch(`/api/public/invitations/${token}`);
         if (!response.ok) {
-          throw new Error('Invitació inválida o caducada');
+          throw new Error('Invitació invàlida o caducada');
         }
         const data = await response.json();
-        setInvitationData(data.invitation);
+        setInvitationData({
+          email: data.email,
+          teamName: data.teamName,
+          captainName: data.capitaName,
+        });
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Error loading invitation');
       } finally {
@@ -44,7 +50,7 @@ export default function PlayerInvitationPage() {
     if (token) {
       fetchInvitation();
     } else {
-      setError('Token inválid');
+      setError('Token invàlid');
       setIsLoading(false);
     }
   }, [token]);
@@ -58,17 +64,22 @@ export default function PlayerInvitationPage() {
     }
 
     try {
-      // API call to register player with invitation token
-      const response = await fetch('/api/auth/register-invited-player', {
+      const response = await fetch('/api/auth/register-invited', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...formData,
-          token,
+          name: formData.name,
+          email: invitationData?.email,
+          password: formData.password,
+          confirmPassword: formData.confirmPassword,
+          invitationToken: token,
         }),
       });
 
       if (response.ok) {
+        const data = await response.json();
+        authService.saveToken(data.token);
+        await refreshUser();
         navigate('/jugador/dashboard');
       } else {
         const data = await response.json();

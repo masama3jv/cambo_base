@@ -20,11 +20,13 @@ export interface IncidentBasket {
 }
 
 export interface IncidentPadel {
-  type: 'set_score' | 'timeout' | 'injury';
-  minute: number;
-  playerName: string;
-  teamId: number;
-  setScore?: { team1: number; team2: number };
+  type: 'set_result' | 'timeout' | 'injury';
+  minute?: number;
+  playerName?: string;
+  teamId?: number;
+  set_number?: number;
+  home_score?: number;
+  away_score?: number;
   timestamp: Date;
 }
 
@@ -33,10 +35,10 @@ export interface MatchSheet {
   matchId: number;
   homeTeamId: number;
   awayTeamId: number;
-  sport: 'futsal' | 'basket' | 'padel';
+  sport: 'futsal' | 'basquet3x3' | 'padel';
   homeScore: number;
   awayScore: number;
-  status: 'actiu' | 'tancat';
+  status: 'actiu' | 'tancat' | 'immutable';
   incidents: (IncidentFutsal | IncidentBasket | IncidentPadel)[];
   startTime: Date;
   endTime?: Date;
@@ -152,6 +154,31 @@ export function recordBasketFoul(
   return sheet;
 }
 
+export function recordPadelSet(
+  sheet: MatchSheet,
+  set_number: number,
+  home_score: number,
+  away_score: number
+): MatchSheet {
+  const incident: IncidentPadel = {
+    type: 'set_result',
+    set_number,
+    home_score,
+    away_score,
+    timestamp: new Date()
+  };
+
+  sheet.incidents.push(incident);
+
+  if (home_score > away_score) {
+    sheet.homeScore++;
+  } else if (away_score > home_score) {
+    sheet.awayScore++;
+  }
+
+  return sheet;
+}
+
 export function undoLastIncident(sheet: MatchSheet): MatchSheet {
   if (sheet.incidents.length === 0) return sheet;
 
@@ -163,6 +190,13 @@ export function undoLastIncident(sheet: MatchSheet): MatchSheet {
       sheet.homeScore -= (lastIncident as any).points || 1;
     } else {
       sheet.awayScore -= (lastIncident as any).points || 1;
+    }
+  } else if (lastIncident.type === 'set_result') {
+    const padelIncident = lastIncident as IncidentPadel;
+    if ((padelIncident.home_score || 0) > (padelIncident.away_score || 0)) {
+      sheet.homeScore--;
+    } else if ((padelIncident.away_score || 0) > (padelIncident.home_score || 0)) {
+      sheet.awayScore--;
     }
   }
 
@@ -190,7 +224,7 @@ export async function generateMatchSheetPDF(
       doc.fontSize(10).text(`ID: ${sheet.matchId}`, { align: 'center' }).moveDown();
 
       // Sport icon
-      const sportEmoji = sheet.sport === 'futsal' ? '⚽' : sheet.sport === 'basquet' ? '🏀' : '🎾';
+      const sportEmoji = sheet.sport === 'futsal' ? '⚽' : sheet.sport === 'basquet3x3' ? '🏀' : '🎾';
       doc.text(`${sportEmoji} ${sheet.sport.toUpperCase()}`, { align: 'center' }).moveDown();
 
       // Match info
@@ -213,19 +247,26 @@ export async function generateMatchSheetPDF(
         doc.text('Cap incident registrat');
       } else {
         sheet.incidents.forEach((incident, index) => {
-          const teamName = incident.teamId === sheet.homeTeamId ? homeTeamName : awayTeamName;
-          const iconMap: any = {
-            goal: '⚽',
-            yellow_card: '🟨',
-            red_card: '🟥',
-            '1pt': '1️⃣',
-            '2pt': '2️⃣',
-            foul: '🚫',
-            set_score: '📊'
-          };
-          
-          const icon = iconMap[incident.type] || '';
-          doc.text(`${index + 1}. [${incident.minute}'] ${icon} ${incident.playerName} (${teamName}) - ${incident.type}`);
+          if (incident.type === 'set_result') {
+            const padelInc = incident as IncidentPadel;
+            doc.text(`${index + 1}. 📊 Set ${padelInc.set_number}: ${homeTeamName} ${padelInc.home_score} - ${padelInc.away_score} ${awayTeamName}`);
+          } else {
+            const teamName = incident.teamId === sheet.homeTeamId ? homeTeamName : awayTeamName;
+            const iconMap: any = {
+              goal: '⚽',
+              yellow_card: '🟨',
+              red_card: '🟥',
+              '1pt': '1️⃣',
+              '2pt': '2️⃣',
+              foul: '🚫',
+              timeout: '⏱️',
+              injury: '🩹'
+            };
+            
+            const icon = iconMap[incident.type] || '';
+            const minuteStr = incident.minute !== undefined ? `[${incident.minute}'] ` : '';
+            doc.text(`${index + 1}. ${minuteStr}${icon} ${incident.playerName} (${teamName}) - ${incident.type}`);
+          }
         });
       }
 

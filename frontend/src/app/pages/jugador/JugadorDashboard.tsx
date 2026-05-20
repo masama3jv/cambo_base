@@ -47,25 +47,22 @@ export default function JugadorDashboard() {
     const fetchDashboardData = async () => {
       try {
         setIsLoading(true);
-        // API calls to get player dashboard data
-        const response = await fetch('/api/jugador/dashboard');
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/jugador/dashboard', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
         if (response.ok) {
-          const contentType = response.headers.get('content-type');
-          if (contentType && contentType.includes('application/json')) {
-            const data = await response.json();
+          const data = await response.json();
+          if (!data.team) {
+            setError('No estàs en cap equip. Espera que un capità t\'hi afegeixi.');
+          } else {
             setUpcomingMatches(data.upcomingMatches || []);
             setRecentMatches(data.recentMatches || []);
             setPersonalStats(data.personalStats || {
-              goals: 0,
-              assists: 0,
-              matchesPlayed: 0,
-              yellowCards: 0,
-              redCards: 0,
+              goals: 0, assists: 0, matchesPlayed: 0, yellowCards: 0, redCards: 0,
             });
-          } else {
-            console.error('Invalid response from server');
           }
-        } else if (response.status !== 404) {
+        } else {
           throw new Error('Failed to fetch dashboard data');
         }
       } catch (err) {

@@ -1,4 +1,5 @@
 import { createBrowserRouter } from "react-router";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
@@ -11,6 +12,9 @@ import CapitaCalendar from "./pages/capita/CapitaCalendar";
 import CapitaStatistics from "./pages/capita/CapitaStatistics";
 import CapitaNotifications from "./pages/capita/CapitaNotifications";
 import JugadorDashboard from "./pages/jugador/JugadorDashboard";
+import JugadorCalendar from "./pages/jugador/JugadorCalendar";
+import JugadorStats from "./pages/jugador/JugadorStats";
+import JugadorProfile from "./pages/jugador/JugadorProfile";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminInscriptions from "./pages/admin/AdminInscriptions";
 import AdminConfigurator from "./pages/admin/AdminConfigurator";
@@ -20,80 +24,88 @@ import ArbitreMatchSheet from "./pages/arbitre/ArbitreMatchSheet";
 import NotFoundPage from "./pages/NotFoundPage";
 
 export const router = createBrowserRouter([
-  {
-    path: "/",
-    Component: LandingPage,
-  },
-  {
-    path: "/login",
-    Component: LoginPage,
-  },
-  {
-    path: "/register",
-    Component: RegisterPage,
-  },
-  {
-    path: "/invite/:token",
-    Component: PlayerInvitationPage,
-  },
+  // Public routes
+  { path: "/", Component: LandingPage },
+  { path: "/login", Component: LoginPage },
+  { path: "/register", Component: RegisterPage },
+  { path: "/invite/:token", Component: PlayerInvitationPage },
+
+  // Capita routes
   {
     path: "/dashboard",
-    Component: CapitaDashboard,
+    element: <ProtectedRoute allowedRoles={['capita']}><CapitaDashboard /></ProtectedRoute>,
   },
   {
     path: "/team",
-    Component: CapitaTeam,
+    element: <ProtectedRoute allowedRoles={['capita']}><CapitaTeam /></ProtectedRoute>,
   },
   {
     path: "/calendar",
-    Component: CapitaCalendar,
+    element: <ProtectedRoute allowedRoles={['capita']}><CapitaCalendar /></ProtectedRoute>,
   },
   {
     path: "/stats",
-    Component: CapitaStatistics,
+    element: <ProtectedRoute allowedRoles={['capita']}><CapitaStatistics /></ProtectedRoute>,
   },
   {
     path: "/notifications",
-    Component: CapitaNotifications,
+    element: <ProtectedRoute allowedRoles={['capita']}><CapitaNotifications /></ProtectedRoute>,
   },
   {
     path: "/documents",
-    Component: CapitaDocuments,
+    element: <ProtectedRoute allowedRoles={['capita']}><CapitaDocuments /></ProtectedRoute>,
   },
   {
     path: "/inscription",
-    Component: CapitaInscription,
+    element: <ProtectedRoute allowedRoles={['capita']}><CapitaInscription /></ProtectedRoute>,
   },
+
+  // Jugador routes
   {
     path: "/jugador/dashboard",
-    Component: JugadorDashboard,
+    element: <ProtectedRoute allowedRoles={['jugador']}><JugadorDashboard /></ProtectedRoute>,
   },
   {
+    path: "/jugador/calendar",
+    element: <ProtectedRoute allowedRoles={['jugador']}><JugadorCalendar /></ProtectedRoute>,
+  },
+  {
+    path: "/jugador/stats",
+    element: <ProtectedRoute allowedRoles={['jugador']}><JugadorStats /></ProtectedRoute>,
+  },
+  {
+    path: "/jugador/profile",
+    element: <ProtectedRoute allowedRoles={['jugador']}><JugadorProfile /></ProtectedRoute>,
+  },
+
+  // Admin routes
+  {
     path: "/admin",
-    Component: AdminDashboard,
+    element: <ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>,
   },
   {
     path: "/admin/inscriptions",
-    Component: AdminInscriptions,
+    element: <ProtectedRoute allowedRoles={['admin']}><AdminInscriptions /></ProtectedRoute>,
   },
   {
     path: "/admin/configurator",
-    Component: AdminConfigurator,
+    element: <ProtectedRoute allowedRoles={['admin']}><AdminConfigurator /></ProtectedRoute>,
   },
   {
     path: "/admin/calendar",
-    Component: AdminCalendarGenerator,
+    element: <ProtectedRoute allowedRoles={['admin']}><AdminCalendarGenerator /></ProtectedRoute>,
   },
+
+  // Arbitre routes
   {
     path: "/arbitre/partits",
-    Component: ArbitreMatches,
+    element: <ProtectedRoute allowedRoles={['arbitre']}><ArbitreMatches /></ProtectedRoute>,
   },
   {
     path: "/arbitre/match/:matchId",
-    Component: ArbitreMatchSheet,
+    element: <ProtectedRoute allowedRoles={['arbitre']}><ArbitreMatchSheet /></ProtectedRoute>,
   },
-  {
-    path: "*",
-    Component: NotFoundPage,
-  },
+
+  // 404
+  { path: "*", Component: NotFoundPage },
 ]);

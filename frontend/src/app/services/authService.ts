@@ -82,17 +82,17 @@ class AuthService {
 
   // Save token to localStorage
   saveToken(token: string): void {
-    localStorage.setItem('authToken', token);
+    localStorage.setItem('token', token);
   }
 
   // Get token from localStorage
   getToken(): string | null {
-    return localStorage.getItem('authToken');
+    return localStorage.getItem('token');
   }
 
   // Remove token from localStorage
   removeToken(): void {
-    localStorage.removeItem('authToken');
+    localStorage.removeItem('token');
   }
 
   // Check if user is authenticated

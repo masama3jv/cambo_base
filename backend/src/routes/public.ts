@@ -70,7 +70,6 @@ router.get('/invitations/:token', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch invitation' });
   }
 });
-});
 
 // POST /api/auth/register-invited-player - Register a player via invitation
 router.post('/auth/register-invited-player', async (req, res) => {
@@ -110,7 +109,7 @@ router.post('/auth/register-invited-player', async (req, res) => {
     const token = jwt.sign(
       { id: result.insertId, email, role: 'jugador' },
       process.env.JWT_SECRET || 'secret',
-      { expiresIn: process.env.JWT_EXPIRE || '7d' }
+      { expiresIn: (process.env.JWT_EXPIRE || '7d') as any }
     );
 
     res.status(201).json({

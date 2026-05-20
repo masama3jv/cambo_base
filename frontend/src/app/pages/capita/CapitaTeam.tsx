@@ -3,7 +3,7 @@ import { Sidebar } from '../../components/Sidebar';
 import { Card } from '../../components/Card';
 import { Badge } from '../../components/Badge';
 import { Button } from '../../components/Button';
-import { UserPlus, Users, X, CheckCircle } from 'lucide-react';
+import { UserPlus, Users, X, CheckCircle, Trophy, Plus } from 'lucide-react';
 import { Input } from '../../components/Input';
 
 interface Player {
@@ -15,10 +15,17 @@ interface Player {
 
 export default function CapitaTeam() {
   const [players, setPlayers] = useState<Player[]>([]);
+  const [team, setTeam] = useState<any | null>(null);
   const [teamId, setTeamId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
+  // Create team states
+  const [newTeamName, setNewTeamName] = useState('');
+  const [newTeamSport, setNewTeamSport] = useState('futsal');
+  const [isCreatingTeam, setIsCreatingTeam] = useState(false);
+  const [createTeamError, setCreateTeamError] = useState<string | null>(null);
+
   // Modal states
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
@@ -65,6 +72,38 @@ export default function CapitaTeam() {
     }
   };
 
+  const handleCreateTeam = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTeamName.trim()) return;
+
+    setIsCreatingTeam(true);
+    setCreateTeamError(null);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/teams', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ name: newTeamName, sport: newTeamSport })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setCreateTeamError(data.error || 'Error al crear l\'equip');
+        return;
+      }
+
+      window.location.reload();
+    } catch (err) {
+      setCreateTeamError(err instanceof Error ? err.message : 'Error al crear l\'equip');
+    } finally {
+      setIsCreatingTeam(false);
+    }
+  };
+
   useEffect(() => {
     const fetchTeamPlayers = async () => {
       try {
@@ -79,11 +118,16 @@ export default function CapitaTeam() {
         });
         
         if (!teamResponse.ok) {
-          throw new Error('Failed to fetch team');
+          // If 401 or similar, show error
+          if (teamResponse.status === 401) {
+            throw new Error('Unauthorized');
+          }
+          // Otherwise, assume no team exists (200 with empty array is expected)
         }
         
         const teams = await teamResponse.json();
         if (teams && teams.length > 0) {
+          setTeam(teams[0]);
           setTeamId(teams[0].id);
           
           // Get team players
@@ -97,6 +141,8 @@ export default function CapitaTeam() {
             const playersData = await playersResponse.json();
             setPlayers(playersData || []);
           }
+        } else {
+          setTeam(null);
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Error loading players');
@@ -133,6 +179,69 @@ export default function CapitaTeam() {
               <Button variant="primary" className="mt-4" onClick={() => window.location.reload()}>
                 Reintentar
               </Button>
+            </Card>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (!team) {
+    return (
+      <div className="flex min-h-screen bg-[#F1EFE8]">
+        <Sidebar role="capita" />
+        <main className="flex-1 p-8 flex items-center justify-center">
+          <div className="max-w-md w-full">
+            <Card className="p-8">
+              <div className="w-16 h-16 bg-[#FAECE7] rounded-full flex items-center justify-center mx-auto mb-6">
+                <Trophy size={32} className="text-[#D85A30]" />
+              </div>
+              <h2 className="text-center mb-2">Crea el teu equip</h2>
+              <p className="text-[#5F5E5A] text-center mb-8 text-[14px]">
+                Com a capità, primer has de crear el teu equip per poder inscriure'l als tornejos i convidar els teus jugadors.
+              </p>
+              
+              <form onSubmit={handleCreateTeam} className="space-y-6">
+                <Input
+                  label="Nom de l'equip"
+                  type="text"
+                  placeholder="Ex. Els Cracks de CampoBase"
+                  value={newTeamName}
+                  onChange={(e) => setNewTeamName(e.target.value)}
+                  required
+                  disabled={isCreatingTeam}
+                />
+                
+                <div className="flex flex-col gap-2">
+                  <label className="text-[12px] font-medium uppercase tracking-wider text-[#2C2C2A]">
+                    Esport
+                  </label>
+                  <select
+                    value={newTeamSport}
+                    onChange={(e) => setNewTeamSport(e.target.value)}
+                    className="h-9 px-3 py-2 bg-white border-[0.5px] border-[#D3D1C7] rounded-lg text-[15px] focus:outline-none focus:border-[#D85A30] transition-colors w-full"
+                    disabled={isCreatingTeam}
+                  >
+                    <option value="futsal">Futbol Sala</option>
+                    <option value="basquet3x3">Bàsquet 3x3</option>
+                    <option value="padel">Pàdel</option>
+                  </select>
+                </div>
+
+                {createTeamError && (
+                  <p className="text-[#A32D2D] text-[13px] text-center">{createTeamError}</p>
+                )}
+
+                <Button
+                  type="submit"
+                  variant="primary"
+                  className="w-full flex items-center justify-center gap-2"
+                  disabled={isCreatingTeam}
+                >
+                  <Plus size={18} />
+                  {isCreatingTeam ? 'Creant equip...' : 'Crear Equip'}
+                </Button>
+              </form>
             </Card>
           </div>
         </main>

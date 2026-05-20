@@ -38,7 +38,10 @@ export default function CapitaDocuments() {
       });
       
       if (!response.ok) {
-        throw new Error('Failed to fetch documents');
+        // Treat 401/403 as actual errors, but 404 or other as "no data"
+        if (response.status === 401 || response.status === 403) {
+          throw new Error('Access denied');
+        }
       }
       
       const data = await response.json();
@@ -72,8 +75,8 @@ export default function CapitaDocuments() {
           }
         });
         const data = await response.json();
-        if (data.teams && data.teams.length > 0) {
-          setTeamId(data.teams[0].id);
+        if (data && Array.isArray(data) && data.length > 0) {
+          setTeamId(data[0].id);
         }
       } catch (err) {
         console.error('Error getting team ID:', err);

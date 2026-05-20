@@ -9,21 +9,17 @@ interface EmailOptions {
 let transporter: Transporter | null = null;
 
 async function initializeTransporter() {
-  // For development, use Ethereal (fake SMTP service)
-  // For production, use your actual SMTP settings
-  
-  if (process.env.NODE_ENV === 'production') {
+  if (process.env.SMTP_HOST) {
     transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
       port: parseInt(process.env.SMTP_PORT || '587'),
       secure: process.env.SMTP_SECURE === 'true',
       auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS
+        user: process.env.SMTP_USER!,
+        pass: process.env.SMTP_PASS!
       }
     });
   } else {
-    // Create test account for development
     const testAccount = await nodemailer.createTestAccount();
     transporter = nodemailer.createTransport({
       host: 'smtp.ethereal.email',
@@ -71,7 +67,7 @@ export async function sendInvitationEmail(
   inviterName: string
 ): Promise<boolean> {
   const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-  const invitationLink = `${frontendUrl}/register?token=${invitationToken}`;
+  const invitationLink = `${frontendUrl}/invite/${invitationToken}`;
 
   const html = `
     <!DOCTYPE html>

@@ -53,7 +53,7 @@ router.post('/register', registerValidation, async (req: Request, res: Response)
     const token = jwt.sign(
       { id: result.insertId, email, role: 'capita' },
       process.env.JWT_SECRET || 'secret',
-      { expiresIn: process.env.JWT_EXPIRE || '7d' }
+      { expiresIn: (process.env.JWT_EXPIRE || '7d') as any }
     );
 
     res.status(201).json({
@@ -102,7 +102,7 @@ router.post('/login', [
     const token = jwt.sign(
       { id: user.id, email, role: user.role },
       process.env.JWT_SECRET || 'secret',
-      { expiresIn: process.env.JWT_EXPIRE || '7d' }
+      { expiresIn: (process.env.JWT_EXPIRE || '7d') as any }
     );
 
     res.json({
@@ -218,12 +218,13 @@ router.post('/register-invited', [
     const token = jwt.sign(
       { id: userId, email, role: 'jugador' },
       process.env.JWT_SECRET || 'secret',
-      { expiresIn: process.env.JWT_EXPIRE || '7d' }
+      { expiresIn: (process.env.JWT_EXPIRE || '7d') as any }
     );
 
     res.status(201).json({
       message: 'User registered successfully and added to team',
       userId,
+      role: 'jugador',
       token
     });
   } catch (error) {

@@ -1,14 +1,18 @@
 import express, { Express, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { connectDatabase } from './db/connection.ts';
-import authRoutes from './routes/auth.ts';
-import teamsRoutes from './routes/teams.ts';
-import inscriptionsRoutes from './routes/inscriptions.ts';
-import capitaRoutes from './routes/capita.ts';
-import adminRoutes from './routes/admin.ts';
-import arbitreRoutes from './routes/arbitre.ts';
-import publicRoutes from './routes/public.ts';
+import fs from 'fs';
+import path from 'path';
+import { connectDatabase, query } from './db/connection.js';
+import { verifyToken, requireRole, AuthRequest } from './middleware/auth.js';
+import authRoutes from './routes/auth.js';
+import teamsRoutes from './routes/teams.js';
+import inscriptionsRoutes from './routes/inscriptions.js';
+import capitaRoutes from './routes/capita.js';
+import adminRoutes from './routes/admin.js';
+import arbitreRoutes from './routes/arbitre.js';
+import publicRoutes from './routes/public.js';
+import jugadorRoutes from './routes/jugador.js';
 
 dotenv.config();
 
@@ -33,11 +37,40 @@ app.use('/api/team', inscriptionsRoutes);
 app.use('/api', capitaRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/arbitre', arbitreRoutes);
+app.use('/api/jugador', jugadorRoutes);
 app.use('/api/public', publicRoutes);
 
 // Health check
 app.get('/api/health', (req: Request, res: Response) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
+});
+
+// GET /api/match-sheets/:matchId/pdf - Serve generated PDF
+app.get('/api/match-sheets/:matchId/pdf', verifyToken, requireRole(['arbitre']), async (req: AuthRequest, res: Response) => {
+  try {
+    const { matchId } = req.params;
+
+    const sheets = await query(
+      'SELECT pdf_url FROM match_sheets WHERE match_id = ? AND status = ?',
+      [matchId, 'immutable']
+    ) as any[];
+
+    if (sheets.length === 0 || !sheets[0].pdf_url) {
+      return res.status(404).json({ error: true, message: 'PDF not found' });
+    }
+
+    const relativePath = sheets[0].pdf_url.startsWith('/') ? sheets[0].pdf_url.substring(1) : sheets[0].pdf_url;
+    const filepath = path.join(process.cwd(), relativePath);
+
+    if (!fs.existsSync(filepath)) {
+      return res.status(404).json({ error: true, message: 'PDF file not found on disk' });
+    }
+
+    res.download(filepath, `acta_${matchId}.pdf`);
+  } catch (error) {
+    console.error('Error fetching PDF:', error);
+    res.status(500).json({ error: true, message: 'Failed to fetch PDF' });
+  }
 });
 
 // Error handling middleware
