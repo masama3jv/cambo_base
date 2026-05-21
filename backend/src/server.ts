@@ -13,6 +13,7 @@ import adminRoutes from './routes/admin.js';
 import arbitreRoutes from './routes/arbitre.js';
 import publicRoutes from './routes/public.js';
 import jugadorRoutes from './routes/jugador.js';
+import { constructWebhookEvent } from './services/stripeService.js';
 
 dotenv.config();
 
@@ -24,6 +25,46 @@ app.use(cors({
   origin: true,
   credentials: true
 }));
+
+// Stripe webhook needs raw body — must come BEFORE express.json()
+app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async (req: Request, res: Response) => {
+  try {
+    const signature = req.headers['stripe-signature'] as string;
+    if (!signature) {
+      return res.status(400).json({ error: 'Missing stripe-signature header' });
+    }
+
+    const event = constructWebhookEvent(Buffer.from(req.body), signature);
+
+    if (event.type === 'payment_intent.succeeded') {
+      const paymentIntent = event.data.object as any;
+      const teamId = paymentIntent.metadata?.teamId;
+      if (teamId) {
+        // Payment confirmed — mark as pending validation
+        await query('UPDATE teams SET status = ? WHERE id = ?', ['pendent_validacio', teamId]);
+        const inscriptions = await query('SELECT * FROM inscriptions WHERE team_id = ?', [teamId]) as any[];
+        if (inscriptions.length > 0) {
+          await query(
+            'UPDATE inscriptions SET status = ?, payment_date = NOW() WHERE team_id = ?',
+            ['pendent_validacio', teamId]
+          );
+        } else {
+          await query(
+            'INSERT INTO inscriptions (team_id, tournament_id, status, amount, payment_date) VALUES (?, ?, ?, ?, NOW())',
+            [teamId, 1, 'pendent_validacio', paymentIntent.amount / 100]
+          );
+        }
+        console.log(`Payment succeeded for team ${teamId}`);
+      }
+    }
+
+    res.json({ received: true });
+  } catch (error) {
+    console.error('Webhook error:', error);
+    res.status(400).json({ error: 'Webhook Error' });
+  }
+});
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

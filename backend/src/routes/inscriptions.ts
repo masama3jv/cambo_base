@@ -4,6 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import { query } from '../db/connection.js';
 import { verifyToken, AuthRequest, requireRole } from '../middleware/auth.js';
+import { createPaymentIntent, getPaymentIntent } from '../services/stripeService.js';
 
 const router: Router = express.Router();
 
@@ -110,8 +111,8 @@ router.get('/inscription-data', verifyToken, async (req: AuthRequest, res) => {
   }
 });
 
-// POST /api/team/process-payment - Process simulated payment
-router.post('/process-payment', verifyToken, async (req: AuthRequest, res) => {
+// POST /api/team/create-payment-intent - Create Stripe PaymentIntent
+router.post('/create-payment-intent', verifyToken, async (req: AuthRequest, res) => {
   try {
     const { teamId, amount } = req.body;
 
@@ -119,10 +120,54 @@ router.post('/process-payment', verifyToken, async (req: AuthRequest, res) => {
       return res.status(400).json({ error: 'Team ID and amount required' });
     }
 
-    // Get team and verify ownership
+    // Verify team ownership
     const teams = await query('SELECT * FROM teams WHERE id = ? AND capita_id = ?', [teamId, req.userId]) as any[];
     if (teams.length === 0) {
       return res.status(403).json({ error: 'Team not found or access denied' });
+    }
+
+    const paymentIntent = await createPaymentIntent(amount, teamId);
+
+    res.json({
+      clientSecret: paymentIntent.client_secret,
+      paymentIntentId: paymentIntent.id,
+      amount
+    });
+  } catch (error) {
+    console.error('Error creating payment intent:', error);
+    res.status(500).json({ error: 'Failed to create payment' });
+  }
+});
+
+// POST /api/team/process-payment - Confirm payment and activate inscription
+router.post('/process-payment', verifyToken, async (req: AuthRequest, res) => {
+  try {
+    const { teamId, amount, paymentIntentId } = req.body;
+
+    if (!teamId || !amount) {
+      return res.status(400).json({ error: 'Team ID and amount required' });
+    }
+
+    // Get team and verify ownership
+    const teams = await query('SELECT * FROM teams WHERE id = ? AND capita_id = ?', [teamId, req.userId]) as any[];
+
+    if (teams.length === 0) {
+      return res.status(403).json({ error: 'Team not found or access denied' });
+    }
+
+    // Verify PaymentIntent if provided
+    if (paymentIntentId) {
+      try {
+        const paymentIntent = await getPaymentIntent(paymentIntentId);
+        if (paymentIntent.status !== 'succeeded') {
+          return res.status(400).json({ error: 'Payment not completed' });
+        }
+      } catch (stripeErr) {
+        console.error('Stripe verification error:', stripeErr);
+        return res.status(400).json({ error: 'Payment verification failed' });
+      }
+    } else {
+      return res.status(400).json({ error: 'Payment intent ID required' });
     }
 
     // Update team status
@@ -140,7 +185,6 @@ router.post('/process-payment', verifyToken, async (req: AuthRequest, res) => {
         ['pendent_validacio', amount, teamId]
       );
     } else {
-      // Assuming tournament_id = 1 for now
       await query(
         'INSERT INTO inscriptions (team_id, tournament_id, status, amount, payment_date) VALUES (?, ?, ?, ?, NOW())',
         [teamId, 1, 'pendent_validacio', amount]
