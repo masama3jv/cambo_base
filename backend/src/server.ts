@@ -20,8 +20,13 @@ const app: Express = express();
 const PORT = process.env.PORT || 3001;
 
 // Middleware
+const allowedOrigins = [
+  'http://localhost:5173',
+  process.env.FRONTEND_URL || ''
+].filter(Boolean);
+
 app.use(cors({
-  origin: 'http://localhost:5173', // Adjust to your frontend URL
+  origin: allowedOrigins.length > 0 ? allowedOrigins : '*',
   credentials: true
 }));
 app.use(express.json());
