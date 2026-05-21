@@ -19,6 +19,8 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminInscriptions from "./pages/admin/AdminInscriptions";
 import AdminConfigurator from "./pages/admin/AdminConfigurator";
 import AdminCalendarGenerator from "./pages/admin/AdminCalendarGenerator";
+import AdminReferees from "./pages/admin/AdminReferees";
+import AdminVenues from "./pages/admin/AdminVenues";
 import ArbitreMatches from "./pages/arbitre/ArbitreMatches";
 import ArbitreMatchSheet from "./pages/arbitre/ArbitreMatchSheet";
 import NotFoundPage from "./pages/NotFoundPage";
@@ -94,6 +96,14 @@ export const router = createBrowserRouter([
   {
     path: "/admin/calendar",
     element: <ProtectedRoute allowedRoles={['admin']}><AdminCalendarGenerator /></ProtectedRoute>,
+  },
+  {
+    path: "/admin/venues",
+    element: <ProtectedRoute allowedRoles={['admin']}><AdminVenues /></ProtectedRoute>,
+  },
+  {
+    path: "/admin/referees",
+    element: <ProtectedRoute allowedRoles={['admin']}><AdminReferees /></ProtectedRoute>,
   },
 
   // Arbitre routes

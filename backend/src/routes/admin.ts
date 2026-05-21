@@ -8,28 +8,26 @@ const router: Router = express.Router();
 // GET /api/admin/dashboard - Get admin dashboard
 router.get('/dashboard', verifyToken, requireRole(['admin']), async (req: AuthRequest, res) => {
   try {
-    // Get pending inscriptions count
+    const totalTeams = await query('SELECT COUNT(*) as count FROM teams') as any[];
     const pendingInscriptions = await query(`
       SELECT COUNT(*) as count FROM teams 
       WHERE status IN ('pendent_docs', 'pendent_pagament', 'pendent_validacio')
     `) as any[];
-
-    // Get total teams
-    const totalTeams = await query('SELECT COUNT(*) as count FROM teams') as any[];
-
-    // Get pending documents
     const pendingDocuments = await query(`
       SELECT COUNT(*) as count FROM documents WHERE status IN ('pendent', 'rebutjat')
     `) as any[];
-
-    // Get active tournaments
     const activeTournaments = await query('SELECT COUNT(*) as count FROM tournaments') as any[];
+    const totalUsers = await query('SELECT COUNT(*) as count FROM users') as any[];
+    const totalMatches = await query('SELECT COUNT(*) as count FROM matches') as any[];
 
     res.json({
-      pendingInscriptions: pendingInscriptions[0]?.count || 0,
       totalTeams: totalTeams[0]?.count || 0,
+      pendingValidations: pendingInscriptions[0]?.count || 0,
       pendingDocuments: pendingDocuments[0]?.count || 0,
-      activeTournaments: activeTournaments[0]?.count || 0
+      activeTournaments: activeTournaments[0]?.count || 0,
+      totalUsers: totalUsers[0]?.count || 0,
+      scheduledMatches: totalMatches[0]?.count || 0,
+      activeCourts: 0
     });
   } catch (error) {
     console.error('Error fetching admin dashboard:', error);
@@ -40,7 +38,7 @@ router.get('/dashboard', verifyToken, requireRole(['admin']), async (req: AuthRe
 // GET /api/admin/inscriptions - Get all pending inscriptions
 router.get('/inscriptions', verifyToken, requireRole(['admin']), async (req: AuthRequest, res) => {
   try {
-    const inscriptions = await query(`
+    const rows = await query(`
       SELECT 
         t.id,
         t.name,
@@ -58,9 +56,20 @@ router.get('/inscriptions', verifyToken, requireRole(['admin']), async (req: Aut
       WHERE t.status IN ('pendent_docs', 'pendent_pagament', 'pendent_validacio')
       GROUP BY t.id
       ORDER BY t.created_at DESC
-    `);
+    `) as any[];
 
-    res.json(inscriptions);
+    const teams = rows.map((row: any) => ({
+      id: String(row.id),
+      name: row.name,
+      sport: row.sport,
+      captain: row.capita_name,
+      status: row.status === 'inscrit' || row.status === 'actiu' ? 'approved' : 'pending',
+      playerCount: row.player_count || 0,
+      approvedDocs: row.approved_docs || 0,
+      totalDocs: row.total_docs || 0
+    }));
+
+    res.json({ teams });
   } catch (error) {
     console.error('Error fetching inscriptions:', error);
     res.status(500).json({ error: 'Failed to fetch inscriptions' });
@@ -72,13 +81,11 @@ router.get('/inscriptions/:teamId', verifyToken, requireRole(['admin']), async (
   try {
     const { teamId } = req.params;
 
-    // Get team info
     const teams = await query('SELECT * FROM teams WHERE id = ?', [teamId]) as any[];
     if (teams.length === 0) {
       return res.status(404).json({ error: 'Team not found' });
     }
 
-    // Get all players and their documents
     const players = await query(`
       SELECT 
         u.id,
@@ -105,6 +112,159 @@ router.get('/inscriptions/:teamId', verifyToken, requireRole(['admin']), async (
   } catch (error) {
     console.error('Error fetching team documents:', error);
     res.status(500).json({ error: 'Failed to fetch documents' });
+  }
+});
+
+// POST /api/admin/inscriptions/:teamId/approve-all - Approve and mark team as inscrit
+router.post('/inscriptions/:teamId/approve-all', verifyToken, requireRole(['admin']), async (req: AuthRequest, res) => {
+  try {
+    const { teamId } = req.params;
+    await query('UPDATE teams SET status = ? WHERE id = ?', ['inscrit', teamId]);
+    res.json({ message: 'Inscripció aprovada' });
+  } catch (error) {
+    console.error('Error approving inscription:', error);
+    res.status(500).json({ error: 'Failed to approve inscription' });
+  }
+});
+
+// POST /api/admin/inscriptions/:teamId/reject - Reject inscription
+router.post('/inscriptions/:teamId/reject', verifyToken, requireRole(['admin']), async (req: AuthRequest, res) => {
+  try {
+    const { teamId } = req.params;
+    await query('UPDATE teams SET status = ? WHERE id = ?', ['rebutjat', teamId]);
+    res.json({ message: 'Inscripció rebutjada' });
+  } catch (error) {
+    console.error('Error rejecting inscription:', error);
+    res.status(500).json({ error: 'Failed to reject inscription' });
+  }
+});
+
+// ===== REFEREES =====
+
+// GET /api/admin/users?role=arbitre - List referees
+router.get('/users', verifyToken, requireRole(['admin']), async (req: AuthRequest, res) => {
+  try {
+    const role = req.query.role as string || 'arbitre';
+    const users = await query(
+      'SELECT id, name, email, role, email_verified, created_at FROM users WHERE role = ? ORDER BY created_at DESC',
+      [role]
+    );
+    res.json(users);
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
+// POST /api/admin/invite-referee - Create/register a referee
+router.post('/invite-referee', verifyToken, requireRole(['admin']), async (req: AuthRequest, res) => {
+  try {
+    const { name, email } = req.body;
+    if (!name || !email) {
+      return res.status(400).json({ error: 'Name and email required' });
+    }
+
+    const existing = await query('SELECT id FROM users WHERE email = ?', [email]) as any[];
+    if (existing.length > 0) {
+      return res.status(409).json({ error: 'A user with this email already exists' });
+    }
+
+    const bcrypt = await import('bcrypt');
+    const defaultPassword = 'referee123';
+    const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+
+    const result = await query(
+      'INSERT INTO users (name, email, password, role, email_verified) VALUES (?, ?, ?, ?, ?)',
+      [name, email, hashedPassword, 'arbitre', true]
+    ) as any;
+
+    res.status(201).json({
+      id: result.insertId,
+      name,
+      email,
+      role: 'arbitre',
+      message: 'Àrbitre creat correctament'
+    });
+  } catch (error) {
+    console.error('Error inviting referee:', error);
+    res.status(500).json({ error: 'Failed to invite referee' });
+  }
+});
+
+// DELETE /api/admin/users/:id - Remove user
+router.delete('/users/:id', verifyToken, requireRole(['admin']), async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const existing = await query('SELECT id FROM users WHERE id = ?', [id]) as any[];
+    if (existing.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    await query('DELETE FROM users WHERE id = ?', [id]);
+    res.json({ message: 'Usuari eliminat correctament' });
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    res.status(500).json({ error: 'Failed to delete user' });
+  }
+});
+
+// ===== VENUES / COURTS =====
+
+// GET /api/admin/venues - List all courts
+router.get('/venues', verifyToken, requireRole(['admin']), async (req: AuthRequest, res) => {
+  try {
+    const courts = await query(`
+      SELECT c.*, t.name as tournament_name 
+      FROM courts c 
+      LEFT JOIN tournaments t ON c.tournament_id = t.id 
+      ORDER BY c.created_at DESC
+    `);
+    res.json(courts);
+  } catch (error) {
+    console.error('Error fetching venues:', error);
+    res.status(500).json({ error: 'Failed to fetch venues' });
+  }
+});
+
+// POST /api/admin/venues - Create a new court/venue
+router.post('/venues', verifyToken, requireRole(['admin']), async (req: AuthRequest, res) => {
+  try {
+    const { name, location } = req.body;
+    if (!name) {
+      return res.status(400).json({ error: 'Name required' });
+    }
+    const result = await query(
+      'INSERT INTO courts (name, location, tournament_id) VALUES (?, ?, ?)',
+      [name, location || 'Campo Base', 0]
+    ) as any;
+    res.status(201).json({ id: result.insertId, name, location: location || 'Campo Base' });
+  } catch (error) {
+    console.error('Error creating venue:', error);
+    res.status(500).json({ error: 'Failed to create venue' });
+  }
+});
+
+// PUT /api/admin/venues/:id - Update a court/venue
+router.put('/venues/:id', verifyToken, requireRole(['admin']), async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const { name, location } = req.body;
+    await query('UPDATE courts SET name = ?, location = ? WHERE id = ?', [name, location, id]);
+    res.json({ message: 'Venue updated' });
+  } catch (error) {
+    console.error('Error updating venue:', error);
+    res.status(500).json({ error: 'Failed to update venue' });
+  }
+});
+
+// DELETE /api/admin/venues/:id - Delete a court/venue
+router.delete('/venues/:id', verifyToken, requireRole(['admin']), async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    await query('DELETE FROM courts WHERE id = ?', [id]);
+    res.json({ message: 'Venue deleted' });
+  } catch (error) {
+    console.error('Error deleting venue:', error);
+    res.status(500).json({ error: 'Failed to delete venue' });
   }
 });
 

@@ -7,29 +7,21 @@ import { AlertCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { API_BASE_URL } from '../../services/api';
 
-interface PendingTeam {
-  id: string;
-  team: string;
-  captain: string;
-  players: number;
-  sport: string;
-}
-
 interface DashboardStats {
   totalTeams: number;
   pendingValidations: number;
+  pendingDocuments: number;
+  activeTournaments: number;
+  totalUsers: number;
   scheduledMatches: number;
   activeCourts: number;
 }
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState<DashboardStats>({
-    totalTeams: 0,
-    pendingValidations: 0,
-    scheduledMatches: 0,
-    activeCourts: 0,
+    totalTeams: 0, pendingValidations: 0, pendingDocuments: 0,
+    activeTournaments: 0, totalUsers: 0, scheduledMatches: 0, activeCourts: 0,
   });
-  const [pendingTeams, setPendingTeams] = useState<PendingTeam[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -42,20 +34,17 @@ export default function AdminDashboard() {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (response.ok) {
-          const contentType = response.headers.get('content-type');
-          if (contentType && contentType.includes('application/json')) {
-            const data = await response.json();
-            setStats(data.stats || {
-              totalTeams: 0,
-              pendingValidations: 0,
-              scheduledMatches: 0,
-              activeCourts: 0,
-            });
-            setPendingTeams(data.pendingTeams || []);
-          } else {
-            console.error('Invalid response from server');
-          }
-        } else if (response.status !== 404) {
+          const data = await response.json();
+          setStats({
+            totalTeams: data.totalTeams || 0,
+            pendingValidations: data.pendingValidations || 0,
+            pendingDocuments: data.pendingDocuments || 0,
+            activeTournaments: data.activeTournaments || 0,
+            totalUsers: data.totalUsers || 0,
+            scheduledMatches: data.scheduledMatches || 0,
+            activeCourts: data.activeCourts || 0,
+          });
+        } else {
           throw new Error('Failed to fetch dashboard data');
         }
       } catch (err) {
@@ -106,15 +95,16 @@ export default function AdminDashboard() {
         <div className="max-w-7xl mx-auto">
           <h1 className="mb-8">Admin Dashboard</h1>
 
-          {/* Metric Cards */}
           <div className="grid grid-cols-4 gap-6 mb-8">
-            <MetricCard label="Equips inscrits" value={stats.totalTeams.toString()} subtitle="3 esports" />
-            <MetricCard label="Pendents validació" value={stats.pendingValidations.toString()} subtitle="Requereixen revisió" />
-            <MetricCard label="Partits programats" value={stats.scheduledMatches.toString()} subtitle="Pròximes 2 setmanes" />
-            <MetricCard label="Pistes actives" value={stats.activeCourts.toString()} subtitle="2 instal·lacions" />
+            <MetricCard label="Equips inscrits" value={stats.totalTeams} subtitle="Total al sistema" />
+            <MetricCard label="Pendents validació" value={stats.pendingValidations} subtitle="Requereixen revisió" />
+            <MetricCard label="Documents pendents" value={stats.pendingDocuments} subtitle="Per revisar" />
+            <MetricCard label="Torneigs actius" value={stats.activeTournaments} subtitle="En curs" />
+            <MetricCard label="Usuaris totals" value={stats.totalUsers} subtitle="Totes les roles" />
+            <MetricCard label="Partits programats" value={stats.scheduledMatches} subtitle="Totals" />
+            <MetricCard label="Pistes actives" value={stats.activeCourts} subtitle="Instal·lacions" />
           </div>
 
-          {/* Pending Validations Alert */}
           {stats.pendingValidations > 0 && (
             <Card className="mb-8 border-l-4 border-l-[#854F0B]">
               <div className="flex items-start gap-4">
@@ -131,61 +121,6 @@ export default function AdminDashboard() {
               </div>
             </Card>
           )}
-
-          {/* Pending Teams Table */}
-          <Card>
-            <h3 className="mb-6">Equips pendents de validació</h3>
-            {pendingTeams.length === 0 ? (
-              <p className="text-center text-[#5F5E5A] py-8">No hi ha equips pendents de validació</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-[#D3D1C7]">
-                      <th className="text-left py-3 px-4 text-[12px] font-medium text-[#5F5E5A] uppercase tracking-wider">
-                        Equip
-                      </th>
-                      <th className="text-left py-3 px-4 text-[12px] font-medium text-[#5F5E5A] uppercase tracking-wider">
-                        Esport
-                      </th>
-                      <th className="text-left py-3 px-4 text-[12px] font-medium text-[#5F5E5A] uppercase tracking-wider">
-                        Capità
-                      </th>
-                      <th className="text-left py-3 px-4 text-[12px] font-medium text-[#5F5E5A] uppercase tracking-wider">
-                        Jugadors
-                      </th>
-                      <th className="text-left py-3 px-4 text-[12px] font-medium text-[#5F5E5A] uppercase tracking-wider">
-                        Estat
-                      </th>
-                      <th className="text-left py-3 px-4 text-[12px] font-medium text-[#5F5E5A] uppercase tracking-wider">
-                        Acció
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {pendingTeams.map((team) => (
-                      <tr key={team.id} className="border-b border-[#D3D1C7] last:border-0">
-                        <td className="py-4 px-4 font-medium text-[#2C2C2A]">{team.team}</td>
-                        <td className="py-4 px-4">
-                          <Badge variant="info">{team.sport}</Badge>
-                        </td>
-                        <td className="py-4 px-4 text-[#5F5E5A]">{team.captain}</td>
-                        <td className="py-4 px-4 text-[#5F5E5A]">{team.players}</td>
-                        <td className="py-4 px-4">
-                          <Badge variant="pending">Pendent validació</Badge>
-                        </td>
-                        <td className="py-4 px-4">
-                          <Link to="/admin/inscriptions">
-                            <Button variant="secondary">Revisar</Button>
-                          </Link>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </Card>
         </div>
       </main>
     </div>
