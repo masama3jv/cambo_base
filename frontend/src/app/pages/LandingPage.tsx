@@ -5,6 +5,7 @@ import { Badge } from '../components/Badge';
 import { Card } from '../components/Card';
 import { CheckCircle, Calendar, FileCheck, Clock, Trophy, Mail, Phone, MapPin, Users, ArrowRight } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { API_UPLOADS_URL } from '../services/api';
 
 interface Match {
   teams: string;
@@ -90,7 +91,7 @@ export default function LandingPage() {
             
             <div className="w-full max-w-[450px] aspect-square rounded-2xl border border-white/50 bg-white/20 backdrop-blur-md p-4 shadow-2xl transition-all duration-500 hover:scale-[1.02] hover:-rotate-1">
               <img 
-                src="http://localhost:3002/uploads/campobase_hero_banner.png" 
+                src={`${API_UPLOADS_URL}/campobase_hero_banner.png`} 
                 alt="CampoBase Sports Platform Illustration"
                 className="w-full h-full object-cover rounded-xl shadow-inner bg-slate-900/5"
               />
