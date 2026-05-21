@@ -23,7 +23,7 @@ export default function AdminCalendarGenerator() {
     endDate: '',
     matchDurationMinutes: 40,
     breakMinutes: 5,
-    courts: ['Court 1', 'Court 2'],
+    courts: ['Pista 1', 'Pista 2'],
     matchesPerDay: 4
   });
 
@@ -34,19 +34,13 @@ export default function AdminCalendarGenerator() {
 
   const handleAddCourt = () => {
     if (newCourt.trim()) {
-      setFormData({
-        ...formData,
-        courts: [...formData.courts, newCourt]
-      });
+      setFormData({ ...formData, courts: [...formData.courts, newCourt] });
       setNewCourt('');
     }
   };
 
   const handleRemoveCourt = (index: number) => {
-    setFormData({
-      ...formData,
-      courts: formData.courts.filter((_, i) => i !== index)
-    });
+    setFormData({ ...formData, courts: formData.courts.filter((_, i) => i !== index) });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -55,17 +49,17 @@ export default function AdminCalendarGenerator() {
     setSuccess(null);
 
     if (!formData.startDate || !formData.endDate) {
-      setError('Selecciona fechas de inicio y fin');
+      setError('Selecciona les dates d\'inici i fi');
       return;
     }
 
     if (new Date(formData.startDate) >= new Date(formData.endDate)) {
-      setError('La fecha de fin debe ser posterior a la de inicio');
+      setError('La data de fi ha de ser posterior a la d\'inici');
       return;
     }
 
     if (formData.courts.length === 0) {
-      setError('Agregat almenys una pista');
+      setError('Afegeix almenys una pista');
       return;
     }
 
@@ -75,10 +69,7 @@ export default function AdminCalendarGenerator() {
 
       const response = await fetch(`${API_BASE_URL}/admin/generate-calendar`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
           format: formData.format,
           startDate: formData.startDate,
@@ -92,30 +83,25 @@ export default function AdminCalendarGenerator() {
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.error || 'Error generating calendar');
+        throw new Error(data.error || 'Error al generar el calendari');
       }
 
       const data = await response.json();
       setSuccess(data);
 
-      // Reset form
       setFormData({
-        format: 'round_robin',
-        startDate: '',
-        endDate: '',
-        matchDurationMinutes: 40,
-        breakMinutes: 5,
-        courts: ['Court 1', 'Court 2'],
-        matchesPerDay: 4
+        format: 'round_robin', startDate: '', endDate: '',
+        matchDurationMinutes: 40, breakMinutes: 5,
+        courts: ['Pista 1', 'Pista 2'], matchesPerDay: 4
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error generating calendar');
+      setError(err instanceof Error ? err.message : 'Error al generar el calendari');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const formatLabels = {
+  const formatLabels: Record<string, string> = {
     round_robin: 'Lliga (Tots contra Tots)',
     groups: 'Grups',
     elimination: 'Eliminatòria',
@@ -127,9 +113,9 @@ export default function AdminCalendarGenerator() {
       <Sidebar role="admin" />
       <main className="flex-1 p-8">
         <div className="max-w-4xl mx-auto">
-          <h1 className="mb-2">Generar Calendario</h1>
+          <h1 className="mb-2">Generar Calendari</h1>
           <p className="text-[#5F5E5A] mb-8">
-            Configura el formato y los detalles del torneo para generar automáticamente el calendario de partidos
+            Configura el format i els detalls del torneig per generar automàticament el calendari de partits
           </p>
 
           {success && (
@@ -137,13 +123,13 @@ export default function AdminCalendarGenerator() {
               <div className="flex gap-4">
                 <CheckCircle className="w-6 h-6 text-green-600 flex-shrink-0" />
                 <div>
-                  <p className="font-bold text-green-900 mb-2">¡Calendario generado exitosamente!</p>
+                  <p className="font-bold text-green-900 mb-2">Calendari generat amb èxit!</p>
                   <ul className="text-sm text-green-800 space-y-1">
-                    <li>✓ Torneo ID: <code className="bg-white px-2 py-1 rounded">{success.tournamentId}</code></li>
-                    <li>✓ Equipos: {success.teamsCount}</li>
-                    <li>✓ Partidos: {success.matchesCount}</li>
-                    <li>✓ Pistas: {success.courtsCount}</li>
-                    <li>✓ Formato: {formatLabels[success.format as keyof typeof formatLabels]}</li>
+                    <li>✓ ID del Torneig: <code className="bg-white px-2 py-1 rounded">{success.tournamentId}</code></li>
+                    <li>✓ Equips: {success.teamsCount}</li>
+                    <li>✓ Partits: {success.matchesCount}</li>
+                    <li>✓ Pistes: {success.courtsCount}</li>
+                    <li>✓ Format: {formatLabels[success.format] || success.format}</li>
                   </ul>
                 </div>
               </div>
@@ -159,11 +145,9 @@ export default function AdminCalendarGenerator() {
                 </div>
               )}
 
-              {/* Formato */}
+              {/* Format */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Formato del Torneo
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Format del Torneig</label>
                 <select
                   value={formData.format}
                   onChange={(e) => setFormData({ ...formData, format: e.target.value as any })}
@@ -175,158 +159,93 @@ export default function AdminCalendarGenerator() {
                   <option value="mixed">Mixt (Grups + Eliminatòria)</option>
                 </select>
                 <p className="text-xs text-gray-500 mt-1">
-                  {formData.format === 'round_robin' && 'Cada equipo juega contra todos los demás una vez'}
-                  {formData.format === 'groups' && 'Los equipos se dividen en grupos. Cada equipo juega contra los de su grupo'}
-                  {formData.format === 'elimination' && 'Formato de eliminación directa. Los perdedores quedan fuera'}
-                  {formData.format === 'mixed' && 'Primera fase en grupos, después se juega eliminatoria'}
+                  {formData.format === 'round_robin' && 'Cada equip juga contra tots els altres una vegada'}
+                  {formData.format === 'groups' && 'Els equips es divideixen en grups. Cada equip juga contra els del seu grup'}
+                  {formData.format === 'elimination' && 'Format d\'eliminació directa. Els perdedors queden fora'}
+                  {formData.format === 'mixed' && 'Primera fase en grups, després es juga eliminatòria'}
                 </p>
               </div>
 
-              {/* Fechas */}
+              {/* Dates */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Fecha de Inicio
-                  </label>
-                  <Input
-                    type="date"
-                    value={formData.startDate}
-                    onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                    required
-                  />
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Data d\'Inici</label>
+                  <Input type="date" value={formData.startDate}
+                    onChange={(e) => setFormData({ ...formData, startDate: e.target.value })} required />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Fecha de Fin
-                  </label>
-                  <Input
-                    type="date"
-                    value={formData.endDate}
-                    onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                    required
-                  />
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Data de Fi</label>
+                  <Input type="date" value={formData.endDate}
+                    onChange={(e) => setFormData({ ...formData, endDate: e.target.value })} required />
                 </div>
               </div>
 
-              {/* Duración de partidos */}
+              {/* Duration */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Duración del Partido (minutos)
-                  </label>
-                  <Input
-                    type="number"
-                    value={formData.matchDurationMinutes}
-                    onChange={(e) => setFormData({ ...formData, matchDurationMinutes: parseInt(e.target.value) })}
-                    min="15"
-                    max="120"
-                    required
-                  />
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Durada del Partit (minuts)</label>
+                  <Input type="number" value={formData.matchDurationMinutes}
+                    onChange={(e) => setFormData({ ...formData, matchDurationMinutes: parseInt(e.target.value) || 0 })}
+                    min="15" max="120" required />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Descanso entre Partidos (minutos)
-                  </label>
-                  <Input
-                    type="number"
-                    value={formData.breakMinutes}
-                    onChange={(e) => setFormData({ ...formData, breakMinutes: parseInt(e.target.value) })}
-                    min="0"
-                    max="30"
-                    required
-                  />
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Descans entre Partits (minuts)</label>
+                  <Input type="number" value={formData.breakMinutes}
+                    onChange={(e) => setFormData({ ...formData, breakMinutes: parseInt(e.target.value) || 0 })}
+                    min="0" max="30" required />
                 </div>
               </div>
 
-              {/* Partidos por día */}
+              {/* Partits per dia */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Máximo de Partidos por Día
-                </label>
-                <Input
-                  type="number"
-                  value={formData.matchesPerDay}
-                  onChange={(e) => setFormData({ ...formData, matchesPerDay: parseInt(e.target.value) })}
-                  min="1"
-                  max="10"
-                  required
-                />
+                <label className="block text-sm font-medium text-gray-700 mb-2">Màxim de Partits per Dia</label>
+                <Input type="number" value={formData.matchesPerDay}
+                  onChange={(e) => setFormData({ ...formData, matchesPerDay: parseInt(e.target.value) || 1 })}
+                  min="1" max="10" required />
               </div>
 
-              {/* Pistas */}
+              {/* Pistes */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Pistas Disponibles
-                </label>
-                
+                <label className="block text-sm font-medium text-gray-700 mb-3">Pistes Disponibles</label>
                 <div className="space-y-2 mb-4">
                   {formData.courts.map((court, index) => (
                     <div key={index} className="flex items-center justify-between bg-gray-50 p-3 rounded-md">
                       <span className="text-gray-700">{court}</span>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveCourt(index)}
-                        className="text-red-600 hover:text-red-800 text-sm font-medium"
-                      >
-                        Eliminar
-                      </button>
+                      <button type="button" onClick={() => handleRemoveCourt(index)}
+                        className="text-red-600 hover:text-red-800 text-sm font-medium">Eliminar</button>
                     </div>
                   ))}
                 </div>
-
                 <div className="flex gap-2">
-                  <Input
-                    type="text"
-                    placeholder="Nombre de la pista (ej: Pista 1)"
-                    value={newCourt}
+                  <Input type="text" placeholder="Nom de la pista (ex: Pista 1)" value={newCourt}
                     onChange={(e) => setNewCourt(e.target.value)}
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        handleAddCourt();
-                      }
-                    }}
-                  />
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={handleAddCourt}
-                  >
-                    Agregar
-                  </Button>
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddCourt(); } }} />
+                  <Button type="button" variant="secondary" onClick={handleAddCourt}>Afegir</Button>
                 </div>
               </div>
 
               {/* Submit */}
               <div className="flex gap-4 pt-6 border-t">
-                <Button
-                  type="submit"
-                  variant="primary"
-                  disabled={isLoading}
-                  className="flex-1"
-                >
+                <Button type="submit" variant="primary" disabled={isLoading} className="flex-1">
                   {isLoading ? (
                     <span className="flex items-center justify-center gap-2">
-                      <Loader className="w-4 h-4 animate-spin" />
-                      Generando calendario...
+                      <Loader className="w-4 h-4 animate-spin" /> Generant calendari...
                     </span>
-                  ) : (
-                    'Generar Calendario'
-                  )}
+                  ) : 'Generar Calendari'}
                 </Button>
               </div>
             </form>
           </Card>
 
-          {/* Información */}
+          {/* Info */}
           <Card className="mt-6 bg-blue-50 border border-blue-200">
-            <h3 className="font-bold text-blue-900 mb-2">ℹ️ Información</h3>
+            <h3 className="font-bold text-blue-900 mb-2">Informació</h3>
             <ul className="text-sm text-blue-800 space-y-1">
-              <li>• El algoritmo calcula automáticamente los horarios para evitar conflictos</li>
-              <li>• Se asegura de que no haya equipos jugando simultáneamente</li>
-              <li>• Se respetan las limitaciones de pistas disponibles</li>
-              <li>• Si no hay suficientes slots, obtendrás un error</li>
-              <li>• Los partidos se distribuyen a lo largo del período definido</li>
+              <li>• L'algoritme calcula automàticament els horaris per evitar conflictes</li>
+              <li>• Assegura que no hi hagi equips jugant simultàniament</li>
+              <li>• Es respecten les limitacions de pistes disponibles</li>
+              <li>• Si no hi ha suficients franges horàries, obtindràs un error</li>
+              <li>• Els partits es distribueixen al llarg del període definit</li>
             </ul>
           </Card>
         </div>
