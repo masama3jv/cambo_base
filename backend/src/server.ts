@@ -28,7 +28,8 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Serve static files from uploads directory
-app.use('/uploads', express.static('uploads'));
+const uploadsDir = path.resolve(process.cwd(), fs.existsSync(path.join(process.cwd(), 'backend', 'uploads')) ? 'backend/uploads' : 'uploads');
+app.use('/uploads', express.static(uploadsDir));
 
 // Routes
 app.use('/api/auth', authRoutes);
