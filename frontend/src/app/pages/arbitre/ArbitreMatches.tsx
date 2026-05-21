@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Edit3, Clock, MapPin, AlertCircle, CheckCircle } from 'lucide-react';
+import { Edit3, Clock, MapPin, AlertCircle, CheckCircle, Download, Lock } from 'lucide-react';
 import { API_BASE_URL } from '../../services/api';
 
 interface Match {
@@ -19,6 +19,7 @@ export default function ArbitreMatches() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [downloading, setDownloading] = useState<number | null>(null);
 
   useEffect(() => {
     fetchMatches();
@@ -30,9 +31,7 @@ export default function ArbitreMatches() {
       const response = await fetch(`${API_BASE_URL}/arbitre/matches`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-
       if (!response.ok) throw new Error('Failed to fetch matches');
-
       const data = await response.json();
       setMatches(data);
       setLoading(false);
@@ -42,21 +41,44 @@ export default function ArbitreMatches() {
     }
   };
 
+  const handleDownloadPDF = async (matchId: number) => {
+    try {
+      setDownloading(matchId);
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/match-sheets/${matchId}/pdf`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `acta_${matchId}.pdf`;
+        a.click();
+      }
+    } catch (err) {
+      console.error('Error downloading PDF:', err);
+    } finally {
+      setDownloading(null);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
-    const statusMap: any = {
+    const statusMap: Record<string, { color: string; label: string }> = {
       'pendent': { color: 'bg-yellow-100 text-yellow-800', label: 'Pendent' },
       'en_curs': { color: 'bg-blue-100 text-blue-800', label: 'En curs' },
       'finalitzat': { color: 'bg-green-100 text-green-800', label: 'Finalitzat' },
       'cancel·lat': { color: 'bg-red-100 text-red-800', label: 'Cancel·lat' }
     };
-    const stat = statusMap[status] || statusMap['pendent'];
-    return stat;
+    return statusMap[status] || statusMap['pendent'];
   };
 
-  const getSheetStatusColor = (sheetStatus?: string) => {
-    if (!sheetStatus) return 'text-gray-400';
-    if (sheetStatus === 'tancat') return 'text-green-600';
-    return 'text-blue-600';
+  const getSheetBadge = (sheetStatus?: string) => {
+    if (!sheetStatus) return { color: 'bg-gray-100 text-gray-500', icon: null, label: 'Sense acta' };
+    if (sheetStatus === 'actiu') return { color: 'bg-blue-100 text-blue-700', icon: Edit3, label: 'Acta oberta' };
+    if (sheetStatus === 'tancat') return { color: 'bg-amber-100 text-amber-700', icon: Lock, label: 'Acta tancada' };
+    if (sheetStatus === 'immutable') return { color: 'bg-green-100 text-green-700', icon: CheckCircle, label: 'Acta finalitzada' };
+    return { color: 'bg-gray-100 text-gray-500', icon: null, label: sheetStatus };
   };
 
   if (loading) {
@@ -98,79 +120,60 @@ export default function ArbitreMatches() {
           <div className="space-y-4">
             {matches.map((match) => {
               const statusInfo = getStatusBadge(match.status);
-              const sheetStatusColor = getSheetStatusColor(match.sheet_status);
+              const sheetBadge = getSheetBadge(match.sheet_status);
+              const SheetIcon = sheetBadge.icon;
 
               return (
-                <div
-                  key={match.id}
-                  className="bg-white rounded-lg shadow-md p-4 sm:p-6 hover:shadow-lg transition"
-                >
+                <div key={match.id} className="bg-white rounded-lg shadow-md p-4 sm:p-6 hover:shadow-lg transition">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    {/* Match Info */}
                     <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
+                      <div className="flex items-center gap-2 mb-2 flex-wrap">
                         <span className={`px-3 py-1 rounded-full text-xs font-semibold ${statusInfo.color}`}>
                           {statusInfo.label}
                         </span>
-                        {match.sheet_status && (
-                          <span className={`flex items-center gap-1 text-xs font-semibold ${sheetStatusColor}`}>
-                            {match.sheet_status === 'tancat' ? (
-                              <>
-                                <CheckCircle size={14} />
-                                Acta tancada
-                              </>
-                            ) : (
-                              <>
-                                <Edit3 size={14} />
-                                Acta en curs
-                              </>
-                            )}
-                          </span>
-                        )}
+                        <span className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold ${sheetBadge.color}`}>
+                          {SheetIcon && <SheetIcon size={14} />}
+                          {sheetBadge.label}
+                        </span>
                       </div>
 
-                      {/* Teams */}
                       <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-3">
                         {match.home_team_name} <span className="text-[#D85A30]">vs</span> {match.away_team_name}
                       </h3>
 
-                      {/* Details */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-gray-600">
                         <div className="flex items-center gap-2">
                           <Clock size={16} className="text-[#D85A30]" />
                           {new Date(match.match_date).toLocaleDateString('ca-ES')} -{' '}
-                          {new Date(match.match_date).toLocaleTimeString('ca-ES', {
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
+                          {new Date(match.match_date).toLocaleTimeString('ca-ES', { hour: '2-digit', minute: '2-digit' })}
                         </div>
                         <div className="flex items-center gap-2">
                           <MapPin size={16} className="text-[#D85A30]" />
                           {match.court_name || 'Pista no assignada'}
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="text-[#D85A30] font-semibold">Sport:</span>
+                          <span className="text-[#D85A30] font-semibold">Esport:</span>
                           <span className="capitalize">{match.sport || 'futsal'}</span>
                         </div>
                       </div>
                     </div>
 
-                    {/* Action Button */}
                     <div className="flex gap-2">
-                      {match.status !== 'pendent' && (
-                        <Link
-                          to={`/arbitre/match/${match.id}`}
-                          className="flex-1 sm:flex-none px-6 py-3 bg-[#D85A30] hover:bg-[#C24620] text-white rounded-lg font-semibold text-sm flex items-center justify-center gap-2 transition"
-                        >
+                      {match.sheet_status === 'immutable' ? (
+                        <button onClick={() => handleDownloadPDF(match.id)} disabled={downloading === match.id}
+                          className="flex-1 sm:flex-none px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold text-sm flex items-center justify-center gap-2 transition disabled:opacity-50">
+                          <Download size={18} />
+                          {downloading === match.id ? 'Descarregant...' : 'PDF'}
+                        </button>
+                      ) : match.status !== 'pendent' ? (
+                        <Link to={`/arbitre/match/${match.id}`}
+                          className="flex-1 sm:flex-none px-6 py-3 bg-[#D85A30] hover:bg-[#C24620] text-white rounded-lg font-semibold text-sm flex items-center justify-center gap-2 transition">
                           <Edit3 size={18} />
                           <span>Acta</span>
                         </Link>
-                      )}
-                      {match.status === 'pendent' && (
-                        <button
-                          disabled
-                          className="flex-1 sm:flex-none px-6 py-3 bg-gray-200 text-gray-500 rounded-lg font-semibold text-sm cursor-not-allowed"
-                        >
+                      ) : (
+                        <button disabled
+                          className="flex-1 sm:flex-none px-6 py-3 bg-gray-200 text-gray-500 rounded-lg font-semibold text-sm cursor-not-allowed">
                           Pendent
                         </button>
                       )}
