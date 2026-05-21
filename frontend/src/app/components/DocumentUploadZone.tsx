@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Upload, FileCheck, AlertCircle, Loader } from 'lucide-react';
+import { API_BASE_URL } from '../services/api';
 
 interface DocumentUploadZoneProps {
   userId: number;
@@ -76,7 +77,7 @@ export default function DocumentUploadZone({
       formData.append('documentType', documentType);
 
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/team/upload-document', {
+      const response = await fetch(`${API_BASE_URL}/team/upload-document`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`

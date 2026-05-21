@@ -3,6 +3,7 @@ import { Card } from '../../components/Card';
 import { Badge } from '../../components/Badge';
 import { Calendar } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { API_BASE_URL } from '../../services/api';
 
 interface Match {
   id: number;
@@ -27,7 +28,7 @@ export default function JugadorCalendar() {
       try {
         setIsLoading(true);
         const token = localStorage.getItem('token');
-        const response = await fetch('/api/jugador/matches', {
+        const response = await fetch(`${API_BASE_URL}/jugador/matches`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (response.ok) {

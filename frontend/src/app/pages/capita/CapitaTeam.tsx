@@ -5,6 +5,7 @@ import { Badge } from '../../components/Badge';
 import { Button } from '../../components/Button';
 import { UserPlus, Users, X, CheckCircle, Trophy, Plus } from 'lucide-react';
 import { Input } from '../../components/Input';
+import { API_BASE_URL } from '../../services/api';
 
 interface Player {
   id: string;
@@ -40,7 +41,7 @@ export default function CapitaTeam() {
     setInviteError(null);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/teams/${teamId}/invite-player`, {
+      const response = await fetch(`${API_BASE_URL}/teams/${teamId}/invite-player`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -80,7 +81,7 @@ export default function CapitaTeam() {
     setCreateTeamError(null);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/teams', {
+      const response = await fetch(`${API_BASE_URL}/teams`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -111,7 +112,7 @@ export default function CapitaTeam() {
         const token = localStorage.getItem('token');
         
         // Get team info first
-        const teamResponse = await fetch('/api/teams', {
+        const teamResponse = await fetch(`${API_BASE_URL}/teams`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -131,7 +132,7 @@ export default function CapitaTeam() {
           setTeamId(teams[0].id);
           
           // Get team players
-          const playersResponse = await fetch(`/api/teams/${teams[0].id}/players`, {
+          const playersResponse = await fetch(`${API_BASE_URL}/teams/${teams[0].id}/players`, {
             headers: {
               'Authorization': `Bearer ${token}`
             }

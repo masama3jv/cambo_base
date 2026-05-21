@@ -4,6 +4,7 @@ import { Badge } from '../../components/Badge';
 import { Button } from '../../components/Button';
 import { FileText } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { API_BASE_URL } from '../../services/api';
 
 interface UpcomingMatch {
   id: string;
@@ -48,7 +49,7 @@ export default function JugadorDashboard() {
       try {
         setIsLoading(true);
         const token = localStorage.getItem('token');
-        const response = await fetch('/api/jugador/dashboard', {
+        const response = await fetch(`${API_BASE_URL}/jugador/dashboard`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (response.ok) {

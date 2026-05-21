@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Sidebar } from '../../components/Sidebar';
 import { Card, MetricCard } from '../../components/Card';
 import { BarChart3 } from 'lucide-react';
+import { API_BASE_URL } from '../../services/api';
 
 interface Statistics {
   matchesPlayed: number;
@@ -22,7 +23,7 @@ export default function CapitaStatistics() {
       try {
         setIsLoading(true);
         const token = localStorage.getItem('token');
-        const response = await fetch('/api/team/statistics', {
+        const response = await fetch(`${API_BASE_URL}/team/statistics`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (!response.ok && response.status !== 404) {

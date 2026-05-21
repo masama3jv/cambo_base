@@ -3,6 +3,7 @@ import { Card } from '../../components/Card';
 import { Badge } from '../../components/Badge';
 import { Users } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { API_BASE_URL } from '../../services/api';
 
 interface Team {
   id: number;
@@ -23,7 +24,7 @@ export default function JugadorProfile() {
         setIsLoading(true);
         const token = localStorage.getItem('token');
 
-        const dashRes = await fetch('/api/jugador/dashboard', {
+        const dashRes = await fetch(`${API_BASE_URL}/jugador/dashboard`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (!dashRes.ok) throw new Error('Failed to load profile');
@@ -36,7 +37,7 @@ export default function JugadorProfile() {
 
         setTeam(dashData.team);
 
-        const playersRes = await fetch(`/api/teams/${dashData.team.id}/players`, {
+        const playersRes = await fetch(`${API_BASE_URL}/teams/${dashData.team.id}/players`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (playersRes.ok) setPlayers(await playersRes.json());

@@ -5,6 +5,7 @@ import { Badge } from '../../components/Badge';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { ChevronDown, ChevronRight, FileText } from 'lucide-react';
+import { API_BASE_URL } from '../../services/api';
 
 interface Player {
   name: string;
@@ -34,7 +35,7 @@ export default function AdminInscriptions() {
       try {
         setIsLoading(true);
         const token = localStorage.getItem('token');
-        const response = await fetch('/api/admin/inscriptions', {
+        const response = await fetch(`${API_BASE_URL}/admin/inscriptions`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (response.ok) {
@@ -56,7 +57,7 @@ export default function AdminInscriptions() {
   const handleApproveDocument = async (teamId: string, playerName: string, docType: 'dni' | 'insurance') => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/admin/inscriptions/${teamId}/approve-document`, {
+      const response = await fetch(`${API_BASE_URL}/admin/inscriptions/${teamId}/approve-document`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ playerName, docType }),
@@ -93,7 +94,7 @@ export default function AdminInscriptions() {
     
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/admin/inscriptions/${teamId}/reject-document`, {
+      const response = await fetch(`${API_BASE_URL}/admin/inscriptions/${teamId}/reject-document`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ playerName, docType, reason: rejectReason }),

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AlertCircle, CheckCircle, Undo2, Download, Lock, X } from 'lucide-react';
+import { API_BASE_URL } from '../../services/api';
 
 interface Incident {
   type: string;
@@ -61,7 +62,7 @@ export default function ArbitreMatchSheet() {
   const fetchMatchData = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/arbitre/match/${matchId}`, {
+      const response = await fetch(`${API_BASE_URL}/arbitre/match/${matchId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -70,7 +71,7 @@ export default function ArbitreMatchSheet() {
       const data = await response.json();
       setMatchInfo(data);
 
-      const sheetResponse = await fetch(`/api/arbitre/match/${matchId}/sheet`, {
+      const sheetResponse = await fetch(`${API_BASE_URL}/arbitre/match/${matchId}/sheet`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -95,7 +96,7 @@ export default function ArbitreMatchSheet() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/arbitre/match/${matchId}/sheet`, {
+      const response = await fetch(`${API_BASE_URL}/arbitre/match/${matchId}/sheet`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -139,7 +140,7 @@ export default function ArbitreMatchSheet() {
   const undoLastIncident = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/arbitre/match/${matchId}/sheet`, {
+      const response = await fetch(`${API_BASE_URL}/arbitre/match/${matchId}/sheet`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -165,7 +166,7 @@ export default function ArbitreMatchSheet() {
     setFinalizingMatch(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/arbitre/match/${matchId}/close`, {
+      const response = await fetch(`${API_BASE_URL}/arbitre/match/${matchId}/close`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -186,7 +187,7 @@ export default function ArbitreMatchSheet() {
     setGeneratingPDF(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/match-sheets/${matchId}/pdf`, {
+      const response = await fetch(`${API_BASE_URL}/match-sheets/${matchId}/pdf`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 

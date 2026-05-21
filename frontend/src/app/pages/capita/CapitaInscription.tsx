@@ -7,6 +7,7 @@ import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { CheckCircle, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { API_BASE_URL } from '../../services/api';
 
 interface InscriptionData {
   teamName: string;
@@ -36,7 +37,7 @@ export default function CapitaInscription() {
         setIsLoading(true);
         const token = localStorage.getItem('token');
         
-        const response = await fetch('/api/team/inscription-data', {
+        const response = await fetch(`${API_BASE_URL}/team/inscription-data`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -68,7 +69,7 @@ export default function CapitaInscription() {
       }
 
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/team/process-payment', {
+      const response = await fetch(`${API_BASE_URL}/team/process-payment`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

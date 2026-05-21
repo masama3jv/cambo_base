@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Sidebar } from '../../components/Sidebar';
 import { Card } from '../../components/Card';
 import { Bell } from 'lucide-react';
+import { API_BASE_URL } from '../../services/api';
 
 interface Notification {
   id: string;
@@ -21,7 +22,7 @@ export default function CapitaNotifications() {
       try {
         setIsLoading(true);
         const token = localStorage.getItem('token');
-        const response = await fetch('/api/notifications', {
+        const response = await fetch(`${API_BASE_URL}/notifications`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }

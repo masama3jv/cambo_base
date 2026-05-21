@@ -3,6 +3,7 @@ import { Sidebar } from '../../components/Sidebar';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
+import { API_BASE_URL } from '../../services/api';
 
 interface GeneratedMatch {
   date: string;
@@ -48,7 +49,7 @@ export default function AdminConfigurator() {
     try {
       setIsLoadingCalendar(true);
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/admin/generate-calendar', {
+      const response = await fetch(`${API_BASE_URL}/admin/generate-calendar`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(formData),

@@ -5,7 +5,7 @@ import { Badge } from '../components/Badge';
 import { Card } from '../components/Card';
 import { CheckCircle, Calendar, FileCheck, Clock, Trophy, Mail, Phone, MapPin, Users, ArrowRight } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { API_UPLOADS_URL } from '../services/api';
+import { API_BASE_URL, API_UPLOADS_URL } from '../services/api';
 
 interface Match {
   teams: string;
@@ -27,7 +27,7 @@ export default function LandingPage() {
     const fetchTournamentData = async () => {
       try {
         setIsLoadingTournament(true);
-        const response = await fetch('/api/public/matches');
+        const response = await fetch(`${API_BASE_URL}/public/matches`);
         if (response.ok) {
           const contentType = response.headers.get('content-type');
           if (contentType && contentType.includes('application/json')) {

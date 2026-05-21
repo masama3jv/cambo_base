@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Edit3, Clock, MapPin, AlertCircle, CheckCircle } from 'lucide-react';
+import { API_BASE_URL } from '../../services/api';
 
 interface Match {
   id: number;
@@ -26,7 +27,7 @@ export default function ArbitreMatches() {
   const fetchMatches = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/arbitre/matches', {
+      const response = await fetch(`${API_BASE_URL}/arbitre/matches`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 

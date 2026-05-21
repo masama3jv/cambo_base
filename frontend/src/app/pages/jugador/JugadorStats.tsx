@@ -3,6 +3,7 @@ import { Card } from '../../components/Card';
 import { Badge } from '../../components/Badge';
 import { BarChart3, Trophy } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { API_BASE_URL } from '../../services/api';
 
 interface StatsData {
   goals: number;
@@ -39,7 +40,7 @@ export default function JugadorStats() {
       try {
         setIsLoading(true);
         const token = localStorage.getItem('token');
-        const response = await fetch('/api/jugador/stats', {
+        const response = await fetch(`${API_BASE_URL}/jugador/stats`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (response.ok) {

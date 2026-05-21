@@ -6,6 +6,7 @@ import { Button } from '../components/Button';
 import { Badge } from '../components/Badge';
 import { useAuth } from '../context/AuthContext';
 import authService from '../services/authService';
+import { API_BASE_URL } from '../services/api';
 
 interface InvitationInfo {
   email: string;
@@ -30,7 +31,7 @@ export default function PlayerInvitationPage() {
     const fetchInvitation = async () => {
       try {
         setIsLoading(true);
-        const response = await fetch(`/api/public/invitations/${token}`);
+        const response = await fetch(`${API_BASE_URL}/public/invitations/${token}`);
         if (!response.ok) {
           throw new Error('Invitació invàlida o caducada');
         }
@@ -64,7 +65,7 @@ export default function PlayerInvitationPage() {
     }
 
     try {
-      const response = await fetch('/api/auth/register-invited', {
+      const response = await fetch(`${API_BASE_URL}/auth/register-invited`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -2,6 +2,7 @@ import { Sidebar } from '../../components/Sidebar';
 import { MetricCard, Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { useState, useEffect } from 'react';
+import { API_BASE_URL } from '../../services/api';
 
 interface DashboardStats {
   nextMatchDate: string | null;
@@ -48,7 +49,7 @@ export default function CapitaDashboard() {
       try {
         setIsLoading(true);
         const token = localStorage.getItem('token');
-        const response = await fetch('/api/dashboard', {
+        const response = await fetch(`${API_BASE_URL}/dashboard`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (response.ok) {

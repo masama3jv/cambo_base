@@ -5,6 +5,7 @@ import { Badge } from '../../components/Badge';
 import { Button } from '../../components/Button';
 import { AlertCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { API_BASE_URL } from '../../services/api';
 
 interface PendingTeam {
   id: string;
@@ -37,7 +38,7 @@ export default function AdminDashboard() {
       try {
         setIsLoading(true);
         const token = localStorage.getItem('token');
-        const response = await fetch('/api/admin/dashboard', {
+        const response = await fetch(`${API_BASE_URL}/admin/dashboard`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (response.ok) {

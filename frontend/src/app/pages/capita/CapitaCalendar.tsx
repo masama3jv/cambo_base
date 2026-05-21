@@ -3,6 +3,7 @@ import { Sidebar } from '../../components/Sidebar';
 import { Card } from '../../components/Card';
 import { Badge } from '../../components/Badge';
 import { Calendar as CalendarIcon } from 'lucide-react';
+import { API_BASE_URL } from '../../services/api';
 
 interface Match {
   id: string;
@@ -23,7 +24,7 @@ export default function CapitaCalendar() {
       try {
         setIsLoading(true);
         const token = localStorage.getItem('token');
-        const response = await fetch('/api/team/matches', {
+        const response = await fetch(`${API_BASE_URL}/team/matches`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (!response.ok && response.status !== 404) {

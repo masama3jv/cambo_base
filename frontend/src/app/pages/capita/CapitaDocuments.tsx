@@ -6,6 +6,7 @@ import { Badge } from '../../components/Badge';
 import { Button } from '../../components/Button';
 import DocumentUploadZone from '../../components/DocumentUploadZone';
 import { CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { API_BASE_URL } from '../../services/api';
 
 interface Document {
   id: number;
@@ -31,7 +32,7 @@ export default function CapitaDocuments() {
     try {
       setIsLoading(true);
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/team/documents', {
+      const response = await fetch(`${API_BASE_URL}/team/documents`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -69,7 +70,7 @@ export default function CapitaDocuments() {
     const getTeamId = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await fetch('/api/teams', {
+        const response = await fetch(`${API_BASE_URL}/teams`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }

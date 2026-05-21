@@ -4,6 +4,7 @@ import { Card } from '../../components/Card';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
 import { AlertCircle, CheckCircle, Loader } from 'lucide-react';
+import { API_BASE_URL } from '../../services/api';
 
 interface CalendarFormData {
   format: 'round_robin' | 'groups' | 'elimination' | 'mixed';
@@ -72,7 +73,7 @@ export default function AdminCalendarGenerator() {
       setIsLoading(true);
       const token = localStorage.getItem('token');
 
-      const response = await fetch('/api/admin/generate-calendar', {
+      const response = await fetch(`${API_BASE_URL}/admin/generate-calendar`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

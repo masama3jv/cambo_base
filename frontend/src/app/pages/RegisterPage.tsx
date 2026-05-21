@@ -6,6 +6,7 @@ import { Button } from '../components/Button';
 import { Badge } from '../components/Badge';
 import { AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { API_BASE_URL } from '../services/api';
 
 export default function RegisterPage() {
   const navigate = useNavigate();
@@ -34,7 +35,7 @@ export default function RegisterPage() {
   const loadInvitationDetails = async () => {
     try {
       setLoadingInvitation(true);
-      const response = await fetch(`/api/public/invitations/${invitationToken}`);
+      const response = await fetch(`${API_BASE_URL}/public/invitations/${invitationToken}`);
       
       if (!response.ok) {
         const data = await response.json();
@@ -72,7 +73,7 @@ export default function RegisterPage() {
     try {
       if (invitationToken) {
         // Register with invitation
-        const response = await fetch('/api/auth/register-invited', {
+        const response = await fetch(`${API_BASE_URL}/auth/register-invited`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
