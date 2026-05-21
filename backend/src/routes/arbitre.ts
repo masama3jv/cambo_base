@@ -143,68 +143,65 @@ router.post('/match/:matchId/sheet', verifyToken, requireRole(['arbitre']), asyn
     }
 
     // Process action
-    if (action === 'goal' && data.playerName && data.teamId) {
+    if (action === 'save_lineups') {
+      sheetData.lineups = data.lineups;
+    } else if (action === 'goal' && data.playerName && data.teamId) {
       sheetData.homeScore = sheetData.homeScore || 0;
       sheetData.awayScore = sheetData.awayScore || 0;
-
       if (data.teamId === sheetData.homeTeamId) {
         sheetData.homeScore++;
       } else {
         sheetData.awayScore++;
       }
-
       sheetData.incidents.push({
-        type: 'goal',
-        minute: data.minute || 0,
-        playerName: data.playerName,
-        teamId: data.teamId,
-        timestamp: new Date()
+        type: 'goal', minute: data.minute || 0, playerName: data.playerName, teamId: data.teamId, timestamp: new Date()
       });
     } else if (action === 'yellow_card' || action === 'red_card') {
       sheetData.incidents.push({
-        type: action,
-        minute: data.minute || 0,
-        playerName: data.playerName,
-        teamId: data.teamId,
-        timestamp: new Date()
+        type: action, minute: data.minute || 0, playerName: data.playerName, teamId: data.teamId, timestamp: new Date()
       });
     } else if (action === '1pt' || action === '2pt') {
       const points = action === '1pt' ? 1 : 2;
       sheetData.homeScore = sheetData.homeScore || 0;
       sheetData.awayScore = sheetData.awayScore || 0;
-
       if (data.teamId === sheetData.homeTeamId) {
         sheetData.homeScore += points;
       } else {
         sheetData.awayScore += points;
       }
-
       sheetData.incidents.push({
-        type: action,
-        minute: data.minute || 0,
-        playerName: data.playerName,
-        teamId: data.teamId,
-        points,
-        timestamp: new Date()
+        type: action, minute: data.minute || 0, playerName: data.playerName, teamId: data.teamId, points, timestamp: new Date()
       });
     } else if (action === 'foul') {
       sheetData.incidents.push({
-        type: 'foul',
-        minute: data.minute || 0,
-        playerName: data.playerName,
-        teamId: data.teamId,
-        timestamp: new Date()
+        type: 'foul', minute: data.minute || 0, playerName: data.playerName, teamId: data.teamId, timestamp: new Date()
+      });
+    } else if (action === 'substitution') {
+      sheetData.incidents.push({
+        type: 'substitution', minute: data.minute || 0, playerOut: data.playerOut, playerIn: data.playerIn, teamId: data.teamId, timestamp: new Date()
+      });
+    } else if (action === 'injury') {
+      sheetData.incidents.push({
+        type: 'injury', minute: data.minute || 0, playerName: data.playerName, teamId: data.teamId, timestamp: new Date()
+      });
+    } else if (action === 'timeout') {
+      sheetData.incidents.push({
+        type: 'timeout', minute: data.minute || 0, teamId: data.teamId, timestamp: new Date()
+      });
+    } else if (action === 'set_result') {
+      sheetData.incidents.push({
+        type: 'set_result', set_number: data.set_number, home_score: data.home_score, away_score: data.away_score, timestamp: new Date()
       });
     } else if (action === 'undo') {
       if (sheetData.incidents.length > 0) {
         const last = sheetData.incidents[sheetData.incidents.length - 1];
         if (last.type === 'goal' || last.type === '1pt' || last.type === '2pt') {
-          const points = last.type === 'goal' || last.type === '1pt' ? 1 : 2;
-          if (last.teamId === sheetData.homeTeamId) {
-            sheetData.homeScore -= points;
-          } else {
-            sheetData.awayScore -= points;
-          }
+          const points = (last.type === 'goal' || last.type === '1pt') ? 1 : 2;
+          if (last.teamId === sheetData.homeTeamId) sheetData.homeScore -= points;
+          else sheetData.awayScore -= points;
+        } else if (last.type === 'set_result') {
+          if ((last.home_score || 0) > (last.away_score || 0)) sheetData.homeScore--;
+          else if ((last.away_score || 0) > (last.home_score || 0)) sheetData.awayScore--;
         }
         sheetData.incidents.pop();
       }
