@@ -5,7 +5,7 @@ import { verifyToken, AuthRequest } from '../middleware/auth.js';
 const router: Router = express.Router();
 
 // GET /api/dashboard - Get capita dashboard data
-router.get('/', verifyToken, async (req: AuthRequest, res) => {
+router.get('/dashboard', verifyToken, async (req: AuthRequest, res) => {
   try {
     if (req.userRole !== 'capita') {
       return res.status(403).json({ error: 'Only for capita role' });
@@ -81,7 +81,7 @@ router.get('/', verifyToken, async (req: AuthRequest, res) => {
 });
 
 // GET /api/team/players - Get team players
-router.get('/players', verifyToken, async (req: AuthRequest, res) => {
+router.get('/team/players', verifyToken, async (req: AuthRequest, res) => {
   try {
     const teams = await query('SELECT * FROM teams WHERE capita_id = ?', [req.userId]) as any[];
 
@@ -104,7 +104,7 @@ router.get('/players', verifyToken, async (req: AuthRequest, res) => {
 });
 
 // GET /api/team/matches - Get team matches
-router.get('/matches', verifyToken, async (req: AuthRequest, res) => {
+router.get('/team/matches', verifyToken, async (req: AuthRequest, res) => {
   try {
     const teams = await query('SELECT * FROM teams WHERE capita_id = ?', [req.userId]) as any[];
 
@@ -136,7 +136,7 @@ router.get('/matches', verifyToken, async (req: AuthRequest, res) => {
 });
 
 // GET /api/team/statistics - Get team statistics
-router.get('/statistics', verifyToken, async (req: AuthRequest, res) => {
+router.get('/team/statistics', verifyToken, async (req: AuthRequest, res) => {
   try {
     const teams = await query('SELECT * FROM teams WHERE capita_id = ?', [req.userId]) as any[];
 

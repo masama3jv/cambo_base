@@ -47,10 +47,10 @@ export default function AdminConfigurator() {
   const handleGenerateCalendar = async () => {
     try {
       setIsLoadingCalendar(true);
-      // API call to generate calendar based on configuration
+      const token = localStorage.getItem('token');
       const response = await fetch('/api/admin/generate-calendar', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(formData),
       });
 

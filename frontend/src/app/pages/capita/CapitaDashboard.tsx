@@ -47,9 +47,10 @@ export default function CapitaDashboard() {
     const fetchDashboardData = async () => {
       try {
         setIsLoading(true);
-        // API calls to get dashboard data would go here
-        // For now, we initialize with empty/null values
-        const response = await fetch('/api/dashboard');
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/dashboard', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
         if (response.ok) {
           const contentType = response.headers.get('content-type');
           if (contentType && contentType.includes('application/json')) {

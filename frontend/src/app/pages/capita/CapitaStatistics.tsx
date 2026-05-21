@@ -21,8 +21,10 @@ export default function CapitaStatistics() {
     const fetchStatistics = async () => {
       try {
         setIsLoading(true);
-        // API call to get statistics would go here
-        const response = await fetch('/api/team/statistics');
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/team/statistics', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
         if (!response.ok && response.status !== 404) {
           throw new Error('Failed to fetch statistics');
         }

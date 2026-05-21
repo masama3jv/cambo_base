@@ -36,8 +36,10 @@ export default function AdminDashboard() {
     const fetchDashboardData = async () => {
       try {
         setIsLoading(true);
-        // API call to fetch admin dashboard data
-        const response = await fetch('/api/admin/dashboard');
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/admin/dashboard', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
         if (response.ok) {
           const contentType = response.headers.get('content-type');
           if (contentType && contentType.includes('application/json')) {

@@ -22,8 +22,10 @@ export default function CapitaCalendar() {
     const fetchMatches = async () => {
       try {
         setIsLoading(true);
-        // API call to get matches would go here
-        const response = await fetch('/api/team/matches');
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/team/matches', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
         if (!response.ok && response.status !== 404) {
           throw new Error('Failed to fetch matches');
         }

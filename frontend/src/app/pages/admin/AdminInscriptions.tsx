@@ -33,8 +33,10 @@ export default function AdminInscriptions() {
     const fetchInscriptions = async () => {
       try {
         setIsLoading(true);
-        // API call to fetch inscriptions for validation
-        const response = await fetch('/api/admin/inscriptions');
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/admin/inscriptions', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
         if (response.ok) {
           const data = await response.json();
           setTeams(data.teams || []);
@@ -53,10 +55,10 @@ export default function AdminInscriptions() {
 
   const handleApproveDocument = async (teamId: string, playerName: string, docType: 'dni' | 'insurance') => {
     try {
-      // API call to approve document
+      const token = localStorage.getItem('token');
       const response = await fetch(`/api/admin/inscriptions/${teamId}/approve-document`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ playerName, docType }),
       });
 
@@ -90,10 +92,10 @@ export default function AdminInscriptions() {
     if (!rejectReason.trim()) return;
     
     try {
-      // API call to reject document
+      const token = localStorage.getItem('token');
       const response = await fetch(`/api/admin/inscriptions/${teamId}/reject-document`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ playerName, docType, reason: rejectReason }),
       });
 

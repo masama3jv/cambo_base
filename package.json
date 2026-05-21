@@ -3,8 +3,10 @@
   "private": true,
   "version": "1.0.0",
   "description": "CampoBase - Sports Management Platform",
+  "packageManager": "pnpm@9.15.4",
   "scripts": {
     "dev": "pnpm -r dev",
-    "build": "pnpm -r build"
+    "build": "pnpm -r build",
+    "start": "node backend/dist/server.js"
   }
 }
