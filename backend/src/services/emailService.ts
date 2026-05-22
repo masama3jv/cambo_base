@@ -19,38 +19,58 @@ async function initializeTransporter() {
         pass: process.env.SMTP_PASS!
       }
     });
+    console.log('SMTP configured with host:', process.env.SMTP_HOST);
   } else {
-    const testAccount = await nodemailer.createTestAccount();
-    transporter = nodemailer.createTransport({
-      host: 'smtp.ethereal.email',
-      port: 587,
-      secure: false,
-      auth: {
-        user: testAccount.user,
-        pass: testAccount.pass
-      }
-    });
+    console.warn('⚠ SMTP_HOST not set — emails will NOT be delivered to real inboxes.');
+    console.warn('  Set SMTP_HOST, SMTP_USER, SMTP_PASS in Railway env vars (e.g. Mailtrap).');
+    console.warn('  Falling back to Ethereal (preview only, not real delivery).');
+
+    try {
+      const testAccount = await nodemailer.createTestAccount();
+      transporter = nodemailer.createTransport({
+        host: 'smtp.ethereal.email',
+        port: 587,
+        secure: false,
+        auth: {
+          user: testAccount.user,
+          pass: testAccount.pass
+        }
+      });
+      console.log('✓ Ethereal test account created:', testAccount.user);
+    } catch (err) {
+      console.error('Failed to create Ethereal test account:', err);
+      // Last resort: no real transport, will log to console instead
+    }
   }
 }
 
 export async function sendEmail(options: EmailOptions): Promise<boolean> {
   try {
     if (!transporter) {
-      await initializeTransporter();
+      try {
+        await initializeTransporter();
+      } catch (initErr) {
+        console.error('Transporter initialization failed:', initErr);
+      }
     }
 
-    const info = await transporter!.sendMail({
-      from: process.env.EMAIL_FROM || 'noreply@campobase.es',
-      to: options.to,
-      subject: options.subject,
-      html: options.html
-    });
+    if (transporter) {
+      const info = await transporter!.sendMail({
+        from: process.env.EMAIL_FROM || 'noreply@campobase.es',
+        to: options.to,
+        subject: options.subject,
+        html: options.html
+      });
 
-    console.log('✓ Email sent:', info.messageId);
-    
-    // For development, log preview URL
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('Preview URL:', nodemailer.getTestMessageUrl(info));
+      console.log('✓ Email sent:', info.messageId);
+      const previewUrl = nodemailer.getTestMessageUrl(info);
+      if (previewUrl) {
+        console.log('  Preview URL:', previewUrl);
+      }
+    } else {
+      console.log('⚠ No email transporter available. Email NOT sent.');
+      console.log(`  To: ${options.to}`);
+      console.log(`  Subject: ${options.subject}`);
     }
 
     return true;
