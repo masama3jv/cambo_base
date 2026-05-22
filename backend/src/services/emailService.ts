@@ -67,10 +67,11 @@ export async function initEmailOnStartup() {
 }
 
 export async function sendEmail(options: EmailOptions): Promise<boolean> {
-  const from = process.env.EMAIL_FROM || 'noreply@campobase.es';
+  // Resend requires a verified domain or use onboarding@resend.dev
+  const resend = getResendClient();
+  const from = process.env.EMAIL_FROM || (resend ? 'onboarding@resend.dev' : 'noreply@campobase.es');
 
   // Prefer Resend HTTP API (works on Railway, uses HTTPS port 443)
-  const resend = getResendClient();
   if (resend) {
     try {
       const { data, error } = await resend.emails.send({

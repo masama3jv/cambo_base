@@ -233,8 +233,8 @@ router.post('/venues', verifyToken, requireRole(['admin']), async (req: AuthRequ
       return res.status(400).json({ error: 'Name required' });
     }
     const result = await query(
-      'INSERT INTO courts (name, location, tournament_id) VALUES (?, ?, ?)',
-      [name, location || 'Campo Base', 0]
+      'INSERT INTO courts (name, location) VALUES (?, ?)',
+      [name, location || 'Campo Base']
     ) as any;
     res.status(201).json({ id: result.insertId, name, location: location || 'Campo Base' });
   } catch (error) {
@@ -349,17 +349,7 @@ router.post('/generate-calendar', verifyToken, requireRole(['admin']), async (re
       return res.status(400).json({ error: 'Need at least 2 teams to generate calendar' });
     }
 
-    // Create courts
-    const courtsData = [];
-    for (const courtName of courtNames) {
-      const result = await query(
-        'INSERT INTO courts (name, location) VALUES (?, ?)',
-        [courtName, 'Campo Base']
-      ) as any;
-      courtsData.push({ id: result.insertId, name: courtName });
-    }
-
-    // Create tournament
+    // Create tournament first (courts need a tournament_id)
     const tournamentResult = await query(
       `INSERT INTO tournaments (name, format, status, start_date, end_date, match_duration_minutes) 
        VALUES (?, ?, ?, ?, ?, ?)`,
@@ -367,6 +357,16 @@ router.post('/generate-calendar', verifyToken, requireRole(['admin']), async (re
     ) as any;
 
     const tournamentId = tournamentResult.insertId;
+
+    // Create courts with tournament_id
+    const courtsData = [];
+    for (const courtName of courtNames) {
+      const result = await query(
+        'INSERT INTO courts (name, location, tournament_id) VALUES (?, ?, ?)',
+        [courtName, 'Campo Base', tournamentId]
+      ) as any;
+      courtsData.push({ id: result.insertId, name: courtName });
+    }
 
     // Generate calendar using calendar service
     const config = {

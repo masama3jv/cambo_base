@@ -72,6 +72,11 @@
 -- ALTER TABLE documents ADD INDEX idx_status (status);
 -- ALTER TABLE inscriptions ADD UNIQUE KEY unique_team_tournament (team_id, tournament_id);
 
+-- Step 15: Make courts.tournament_id nullable (venues don't require a tournament)
+-- ALTER TABLE courts MODIFY COLUMN tournament_id INT NULL;
+-- ALTER TABLE courts DROP FOREIGN KEY courts_ibfk_1;
+-- ALTER TABLE courts ADD CONSTRAINT courts_ibfk_1 FOREIGN KEY (tournament_id) REFERENCES tournaments(id) ON DELETE SET NULL;
+
 -- ==============================================================================
 -- RECOMMENDED APPROACH:
 -- ==============================================================================
