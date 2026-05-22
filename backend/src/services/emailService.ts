@@ -1,4 +1,5 @@
 import nodemailer, { Transporter } from 'nodemailer';
+import { Resend } from 'resend';
 
 interface EmailOptions {
   to: string;
@@ -7,6 +8,17 @@ interface EmailOptions {
 }
 
 let transporter: Transporter | null = null;
+let resendClient: Resend | null = null;
+
+function getResendClient(): Resend | null {
+  if (resendClient) return resendClient;
+  if (process.env.RESEND_API_KEY) {
+    resendClient = new Resend(process.env.RESEND_API_KEY);
+    console.log('✓ Resend client configured');
+    return resendClient;
+  }
+  return null;
+}
 
 async function initializeTransporter() {
   if (process.env.SMTP_HOST) {
@@ -23,9 +35,7 @@ async function initializeTransporter() {
     });
     console.log('SMTP configured with host:', process.env.SMTP_HOST);
   } else {
-    console.warn('⚠ SMTP_HOST not set — emails will NOT be delivered to real inboxes.');
-    console.warn('  Set SMTP_HOST, SMTP_USER, SMTP_PASS in Railway env vars (e.g. Mailtrap).');
-    console.warn('  Falling back to Ethereal (preview only, not real delivery).');
+    console.warn('⚠ SMTP_HOST not set — falling back to Ethereal (preview only, not real delivery).');
 
     try {
       const testAccount = await nodemailer.createTestAccount();
@@ -48,6 +58,7 @@ async function initializeTransporter() {
 }
 
 export async function initEmailOnStartup() {
+  getResendClient();
   try {
     await initializeTransporter();
   } catch (err) {
@@ -56,6 +67,31 @@ export async function initEmailOnStartup() {
 }
 
 export async function sendEmail(options: EmailOptions): Promise<boolean> {
+  const from = process.env.EMAIL_FROM || 'noreply@campobase.es';
+
+  // Prefer Resend HTTP API (works on Railway, uses HTTPS port 443)
+  const resend = getResendClient();
+  if (resend) {
+    try {
+      const { data, error } = await resend.emails.send({
+        from,
+        to: options.to,
+        subject: options.subject,
+        html: options.html
+      });
+      if (error) {
+        console.error('Resend API error:', error);
+        return false;
+      }
+      console.log('✓ Email sent via Resend:', data?.id);
+      return true;
+    } catch (err) {
+      console.error('Error sending email via Resend:', err);
+      return false;
+    }
+  }
+
+  // Fallback: nodemailer SMTP
   try {
     if (!transporter) {
       try {
@@ -67,7 +103,7 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
 
     if (transporter) {
       const info = await transporter!.sendMail({
-        from: process.env.EMAIL_FROM || 'noreply@campobase.es',
+        from,
         to: options.to,
         subject: options.subject,
         html: options.html
@@ -79,7 +115,7 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
         console.log('  Preview URL:', previewUrl);
       }
     } else {
-      console.log('⚠ No email transporter available. Email NOT sent.');
+      console.log('⚠ No email method available. Email NOT sent.');
       console.log(`  To: ${options.to}`);
       console.log(`  Subject: ${options.subject}`);
     }
