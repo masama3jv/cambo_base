@@ -101,8 +101,10 @@ export default function RegisterPage() {
         // Redirect to dashboard
         navigate('/dashboard');
       } else {
-        // Normal registration
-        await register(formData.name, formData.email, formData.password, formData.confirmPassword);
+        const userRole = formData.teamCode ? 'jugador' : undefined;
+
+        // Register with role (jugador if team code present)
+        await register(formData.name, formData.email, formData.password, formData.confirmPassword, userRole);
 
         // If team code provided, join the team
         if (formData.teamCode) {
@@ -114,7 +116,7 @@ export default function RegisterPage() {
           });
         }
 
-        navigate('/dashboard');
+        navigate(userRole === 'jugador' ? '/jugador/dashboard' : '/dashboard');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error en el registre');
@@ -143,7 +145,7 @@ export default function RegisterPage() {
           
           {!invitationToken && (
             <div className="flex justify-center">
-              <Badge variant="info">Se t'assignarà el rol de Capità (o Jugador si introdueixes un codi d'equip)</Badge>
+              <Badge variant="info">Sense codi: et registres com a Capità. Amb codi: et registres com a Jugador</Badge>
             </div>
           )}
         </div>

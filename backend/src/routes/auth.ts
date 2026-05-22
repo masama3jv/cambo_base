@@ -28,7 +28,9 @@ router.post('/register', registerValidation, async (req: Request, res: Response)
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { name, email, password } = req.body;
+    const { name, email, password, role } = req.body;
+
+    const userRole = role === 'jugador' ? 'jugador' : 'capita';
 
     // Check if user already exists
     const existingUsers = await query(
@@ -46,12 +48,12 @@ router.post('/register', registerValidation, async (req: Request, res: Response)
     // Create user
     const result = await query(
       'INSERT INTO users (name, email, password, role, created_at) VALUES (?, ?, ?, ?, NOW())',
-      [name, email, hashedPassword, 'capita']
+      [name, email, hashedPassword, userRole]
     ) as any;
 
     // Generate JWT token
     const token = jwt.sign(
-      { id: result.insertId, email, role: 'capita' },
+      { id: result.insertId, email, role: userRole },
       process.env.JWT_SECRET || 'secret',
       { expiresIn: (process.env.JWT_EXPIRE || '7d') as any }
     );
@@ -59,6 +61,7 @@ router.post('/register', registerValidation, async (req: Request, res: Response)
     res.status(201).json({
       message: 'User registered successfully',
       userId: result.insertId,
+      role: userRole,
       token
     });
   } catch (error) {
