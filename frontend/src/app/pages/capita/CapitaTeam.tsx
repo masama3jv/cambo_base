@@ -10,8 +10,10 @@ import { API_BASE_URL } from '../../services/api';
 interface Player {
   id: string;
   name: string;
+  email: string;
   dniStatus: 'approved' | 'pending' | 'rejected';
   insuranceStatus: 'approved' | 'pending' | 'rejected';
+  imageRightsStatus: 'approved' | 'pending' | 'rejected';
 }
 
 export default function CapitaTeam() {
@@ -32,6 +34,9 @@ export default function CapitaTeam() {
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteStatus, setInviteStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [inviteError, setInviteError] = useState<string | null>(null);
+
+  const [inviteCode, setInviteCode] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,12 +69,19 @@ export default function CapitaTeam() {
         setInviteStatus('idle');
         setInviteEmail('');
         setInviteError(null);
-        // Refresh players list
         window.location.reload();
       }, 2000);
     } catch (err) {
       setInviteError(err instanceof Error ? err.message : 'Error en enviar la invitació');
       setInviteStatus('error');
+    }
+  };
+
+  const copyCode = () => {
+    if (inviteCode) {
+      navigator.clipboard.writeText(inviteCode);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     }
   };
 
@@ -128,11 +140,13 @@ export default function CapitaTeam() {
         
         const teams = await teamResponse.json();
         if (teams && teams.length > 0) {
-          setTeam(teams[0]);
-          setTeamId(teams[0].id);
+          const t = teams[0];
+          setTeam(t);
+          setTeamId(t.id);
+          setInviteCode(t.invite_code || null);
           
           // Get team players
-          const playersResponse = await fetch(`${API_BASE_URL}/teams/${teams[0].id}/players`, {
+          const playersResponse = await fetch(`${API_BASE_URL}/teams/${t.id}/players`, {
             headers: {
               'Authorization': `Bearer ${token}`
             }
@@ -140,7 +154,23 @@ export default function CapitaTeam() {
           
           if (playersResponse.ok) {
             const playersData = await playersResponse.json();
-            setPlayers(playersData || []);
+            // Fetch document statuses for players
+            const docsResponse = await fetch(`${API_BASE_URL}/team/documents`, {
+              headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (docsResponse.ok) {
+              const docsData = await docsResponse.json();
+              const docs = docsData.documents || [];
+              const enriched = playersData.map((p: any) => ({
+                ...p,
+                dniStatus: docs.find((d: any) => d.user_id === p.id && d.document_type === 'dni')?.status || 'pending',
+                insuranceStatus: docs.find((d: any) => d.user_id === p.id && d.document_type === 'asseguranca')?.status || 'pending',
+                imageRightsStatus: docs.find((d: any) => d.user_id === p.id && d.document_type === 'image_rights')?.status || 'pending',
+              }));
+              setPlayers(enriched);
+            } else {
+              setPlayers(playersData || []);
+            }
           }
         } else {
           setTeam(null);
@@ -295,12 +325,15 @@ export default function CapitaTeam() {
                 <div className="flex items-start justify-between">
                   <div>
                     <p className="font-medium text-[#2C2C2A] mb-3">{player.name}</p>
-                    <div className="flex gap-2">
-                      <Badge variant={player.dniStatus}>
-                        DNI: {player.dniStatus === 'approved' ? 'Aprovat' : player.dniStatus === 'pending' ? 'Pendent' : 'Rebutjat'}
+                    <div className="flex gap-2 flex-wrap">
+                      <Badge variant={player.dniStatus === 'aprovat' || player.dniStatus === 'approved' ? 'success' : player.dniStatus === 'rebutjat' ? 'error' : 'pending'}>
+                        DNI: {player.dniStatus === 'aprovat' || player.dniStatus === 'approved' ? 'Aprovat' : player.dniStatus === 'rebutjat' || player.dniStatus === 'rejected' ? 'Rebutjat' : 'Pendent'}
                       </Badge>
-                      <Badge variant={player.insuranceStatus}>
-                        Assegurança: {player.insuranceStatus === 'approved' ? 'Aprovat' : player.insuranceStatus === 'pending' ? 'Pendent' : 'Rebutjat'}
+                      <Badge variant={player.insuranceStatus === 'aprovat' || player.insuranceStatus === 'approved' ? 'success' : player.insuranceStatus === 'rebutjat' ? 'error' : 'pending'}>
+                        Assegurança: {player.insuranceStatus === 'aprovat' || player.insuranceStatus === 'approved' ? 'Aprovat' : player.insuranceStatus === 'rebutjat' || player.insuranceStatus === 'rejected' ? 'Rebutjat' : 'Pendent'}
+                      </Badge>
+                      <Badge variant={player.imageRightsStatus === 'aprovat' || player.imageRightsStatus === 'approved' ? 'success' : player.imageRightsStatus === 'rebutjat' ? 'error' : 'pending'}>
+                        Drets d\'imatge: {player.imageRightsStatus === 'aprovat' || player.imageRightsStatus === 'approved' ? 'Aprovat' : player.imageRightsStatus === 'rebutjat' || player.imageRightsStatus === 'rejected' ? 'Rebutjat' : 'Pendent'}
                       </Badge>
                     </div>
                   </div>
@@ -309,6 +342,28 @@ export default function CapitaTeam() {
             ))}
           </div>
         </div>
+
+        {/* Invite Code Section */}
+        {inviteCode && (
+          <Card className="mt-6 bg-gradient-to-r from-[#FAECE7] to-[#FFFDFB] border border-[#D85A30]/20">
+            <div className="flex items-start justify-between">
+              <div>
+                <h3 className="text-[#D85A30] mb-2">Comparteix el codi d'invitació</h3>
+                <p className="text-[13px] text-[#5F5E5A] mb-4">
+                  Els jugadors es poden registrar a la plataforma i introduir aquest codi per unir-se al teu equip.
+                </p>
+                <div className="flex items-center gap-3">
+                  <div className="bg-white px-6 py-3 rounded-lg border border-[#D3D1C7] shadow-sm">
+                    <span className="text-[24px] font-bold text-[#2C2C2A] tracking-widest">{inviteCode}</span>
+                  </div>
+                  <Button variant="secondary" onClick={copyCode}>
+                    {copied ? 'Copiat!' : 'Copiar'}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </Card>
+        )}
 
         {/* Invite Modal */}
         {isInviteModalOpen && (

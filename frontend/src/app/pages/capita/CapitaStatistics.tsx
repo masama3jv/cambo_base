@@ -32,7 +32,15 @@ export default function CapitaStatistics() {
         const contentType = response.headers.get('content-type');
         if (contentType && contentType.includes('application/json')) {
           const data = await response.json();
-          setStats(data.statistics || null);
+          const s = data.statistics || data.overall || null;
+          setStats(s ? {
+            matchesPlayed: s.matchesPlayed || s.matches_played || 0,
+            wins: s.wins || 0,
+            draws: s.draws || 0,
+            losses: s.losses || 0,
+            goalsFor: s.goalsFor || 0,
+            goalsAgainst: s.goalsAgainst || 0,
+          } : null);
         } else {
           throw new Error('Invalid response from server');
         }

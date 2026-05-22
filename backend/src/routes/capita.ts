@@ -46,34 +46,92 @@ router.get('/dashboard', verifyToken, async (req: AuthRequest, res) => {
       AND m.status = 'finalitzat'
     `, [team.id, team.id, team.id, team.id, team.id, team.id]) as any[];
 
-    // Get pending documents
+    // Get pending documents count (docs that are pendent or rebutjat)
     const pendingDocs = await query(`
       SELECT COUNT(*) as count FROM documents
       WHERE team_id = ? AND status IN ('pendent', 'rebutjat')
     `, [team.id]) as any[];
 
-    // Get inscription steps
+    // Get goals for/against from match_sheets
+    const goals = await query(`
+      SELECT 
+        COALESCE(SUM(CASE WHEN m.home_team_id = ? THEN ms.home_score WHEN m.away_team_id = ? THEN ms.away_score END), 0) as goalsFor,
+        COALESCE(SUM(CASE WHEN m.home_team_id = ? THEN ms.away_score WHEN m.away_team_id = ? THEN ms.home_score END), 0) as goalsAgainst
+      FROM matches m
+      JOIN match_sheets ms ON m.id = ms.match_id
+      WHERE (m.home_team_id = ? OR m.away_team_id = ?) AND m.status = 'finalitzat'
+    `, [team.id, team.id, team.id, team.id, team.id, team.id]) as any[];
+
+    // Get classification position
+    const classification = await query(`
+      SELECT team_id, points, RANK() OVER (ORDER BY points DESC) as position
+      FROM (
+        SELECT 
+          CASE WHEN m.home_team_id = ? THEN m.home_team_id ELSE m.away_team_id END as team_id,
+          SUM(CASE 
+            WHEN (m.home_team_id = ? AND ms.home_score > ms.away_score) OR (m.away_team_id = ? AND ms.away_score > ms.home_score) THEN 3
+            WHEN ms.home_score = ms.away_score THEN 1
+            ELSE 0
+          END) as points
+        FROM matches m
+        JOIN match_sheets ms ON m.id = ms.match_id
+        WHERE (m.home_team_id = ? OR m.away_team_id = ?) AND m.status = 'finalitzat'
+        GROUP BY team_id
+      ) as standings
+    `, [team.id, team.id, team.id, team.id, team.id]) as any[];
+
+    let position = classification.length > 0 ? classification[0].position : null;
+    // If no classification data, check if there are any finalitzat matches in the system
+    if (!position) {
+      const anyMatches = await query(
+        "SELECT COUNT(*) as cnt FROM matches WHERE status = 'finalitzat'", []
+      ) as any[];
+      position = anyMatches[0]?.cnt > 0 ? '-' : null;
+    }
+
+    // Get team invite_code
+    const invite_code = team.invite_code || null;
+
+    const statsRow = stats[0] || { wins: 0, draws: 0, losses: 0, matches_played: 0 };
+    const goalsRow = goals[0] || { goalsFor: 0, goalsAgainst: 0 };
+
+    // Determine which step is active
+    const stepIndex = team.status === 'pendent_docs' ? 0
+      : team.status === 'pendent_pagament' ? 1
+      : team.status === 'pendent_validacio' ? 2
+      : team.status === 'inscrit' ? 3
+      : team.status === 'actiu' ? 4 : 0;
+
     const inscriptionSteps = [
-      { label: 'Pendent docs', completed: team.status !== 'pendent_docs' },
-      { label: 'Pendent pagament', completed: team.status !== 'pendent_pagament' && team.status !== 'pendent_docs' },
-      { label: 'Pendent validació', completed: team.status !== 'pendent_validacio' && team.status !== 'pendent_pagament' && team.status !== 'pendent_docs' },
-      { label: 'Inscrit', completed: team.status === 'inscrit' || team.status === 'actiu' },
-      { label: 'Actiu', completed: team.status === 'actiu' }
+      { label: 'Pendent docs', active: stepIndex === 0, completed: stepIndex > 0 },
+      { label: 'Pendent pagament', active: stepIndex === 1, completed: stepIndex > 1 },
+      { label: 'Pendent validació', active: stepIndex === 2, completed: stepIndex > 2 },
+      { label: 'Inscrit', active: stepIndex === 3, completed: stepIndex > 3 },
+      { label: 'Actiu', active: stepIndex === 4, completed: stepIndex > 4 },
     ];
 
     res.json({
-      teamName: team.name,
-      sport: team.sport,
-      status: team.status,
-      nextMatch: nextMatch ? {
-        date: nextMatch.match_date,
-        court: nextMatch.court_name,
-        opponent: nextMatch.home_team_id === team.id ? 'Away Team' : 'Home Team',
-        arbitre: nextMatch.arbitre_name
-      } : null,
-      statistics: stats[0] || { wins: 0, draws: 0, losses: 0, matches_played: 0 },
-      pendingDocuments: pendingDocs[0]?.count || 0,
-      inscriptionSteps
+      stats: {
+        nextMatchDate: nextMatch ? new Date(nextMatch.match_date).toLocaleDateString('ca-ES', { day: 'numeric', month: 'long' }) : null,
+        nextMatchTime: nextMatch ? new Date(nextMatch.match_date).toLocaleTimeString('ca-ES', { hour: '2-digit', minute: '2-digit' }) : null,
+        nextMatchCourt: nextMatch?.court_name || null,
+        classificationPosition: position ? `#${position}` : null,
+        pendingDocuments: pendingDocs[0]?.count || 0,
+        matchesPlayed: statsRow.matches_played,
+        wins: statsRow.wins,
+        draws: statsRow.draws,
+        losses: statsRow.losses,
+        goalsFor: goalsRow.goalsFor,
+        goalsAgainst: goalsRow.goalsAgainst,
+      },
+      inscriptionSteps,
+      team: {
+        id: team.id,
+        name: team.name,
+        sport: team.sport,
+        status: team.status,
+        invite_code: invite_code,
+      }
     });
   } catch (error) {
     console.error('Error fetching dashboard data:', error);
@@ -150,13 +208,16 @@ router.get('/team/statistics', verifyToken, async (req: AuthRequest, res) => {
     // Get overall stats
     const overallStats = await query(`
       SELECT 
+        COUNT(*) as matchesPlayed,
         COUNT(CASE WHEN (m.home_team_id = ? AND ms.home_score > ms.away_score) OR (m.away_team_id = ? AND ms.away_score > ms.home_score) THEN 1 END) as wins,
         COUNT(CASE WHEN ms.home_score = ms.away_score THEN 1 END) as draws,
-        COUNT(CASE WHEN (m.home_team_id = ? AND ms.home_score < ms.away_score) OR (m.away_team_id = ? AND ms.away_score < ms.home_score) THEN 1 END) as losses
+        COUNT(CASE WHEN (m.home_team_id = ? AND ms.home_score < ms.away_score) OR (m.away_team_id = ? AND ms.away_score < ms.home_score) THEN 1 END) as losses,
+        COALESCE(SUM(CASE WHEN m.home_team_id = ? THEN ms.home_score WHEN m.away_team_id = ? THEN ms.away_score END), 0) as goalsFor,
+        COALESCE(SUM(CASE WHEN m.home_team_id = ? THEN ms.away_score WHEN m.away_team_id = ? THEN ms.home_score END), 0) as goalsAgainst
       FROM matches m
       JOIN match_sheets ms ON m.id = ms.match_id
       WHERE (m.home_team_id = ? OR m.away_team_id = ?) AND m.status = 'finalitzat'
-    `, [teamId, teamId, teamId, teamId, teamId, teamId]) as any[];
+    `, [teamId, teamId, teamId, teamId, teamId, teamId, teamId, teamId, teamId, teamId]) as any[];
 
     // Get player statistics
     const playerStats = await query(`
@@ -175,7 +236,7 @@ router.get('/team/statistics', verifyToken, async (req: AuthRequest, res) => {
     `, [teamId]) as any[];
 
     res.json({
-      overall: overallStats[0] || { wins: 0, draws: 0, losses: 0 },
+      statistics: overallStats[0] || { matchesPlayed: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0 },
       players: playerStats
     });
   } catch (error) {

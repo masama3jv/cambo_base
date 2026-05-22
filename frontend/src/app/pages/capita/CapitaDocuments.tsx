@@ -26,7 +26,19 @@ export default function CapitaDocuments() {
   const [noTeam, setNoTeam] = useState(false);
   const [noPlayers, setNoPlayers] = useState(false);
   const [teamId, setTeamId] = useState<number | null>(null);
-  const [showUploadModal, setShowUploadModal] = useState<{ userId: number; documentType: 'dni' | 'asseguranca' | 'altres' } | null>(null);
+  const [showUploadModal, setShowUploadModal] = useState<{ userId: number; documentType: 'dni' | 'asseguranca' | 'image_rights' } | null>(null);
+
+  const DOC_LABELS: Record<string, string> = {
+    dni: 'DNI',
+    asseguranca: 'Assegurança mèdica',
+    image_rights: 'Drets d\'imatge',
+  };
+
+  const DOC_MAP: Record<string, string> = {
+    'DNI': 'dni',
+    'Assegurança mèdica': 'asseguranca',
+    'Drets d\'imatge': 'image_rights',
+  };
 
   const fetchPlayerDocuments = async () => {
     try {
@@ -54,7 +66,36 @@ export default function CapitaDocuments() {
         setNoPlayers(true);
         setDocuments([]);
       } else {
-        setDocuments(data.documents || []);
+        // Ensure each player has 3 document slots (dni, asseguranca, image_rights)
+        const docs = data.documents || [];
+        const allTypes = ['dni', 'asseguranca', 'image_rights'];
+        // Group by player
+        const byPlayer: Record<number, { userId: number; name: string; types: Set<string> }> = {};
+        docs.forEach((d: Document) => {
+          if (!byPlayer[d.user_id]) {
+            byPlayer[d.user_id] = { userId: d.user_id, name: d.name, types: new Set() };
+          }
+          byPlayer[d.user_id].types.add(d.document_type);
+        });
+        // Add missing document slots for each player
+        const filled = [...docs];
+        Object.values(byPlayer).forEach(p => {
+          allTypes.forEach(t => {
+            if (!p.types.has(t)) {
+              filled.push({
+                id: -(p.userId * 10 + allTypes.indexOf(t)), // negative id to avoid conflicts
+                user_id: p.userId,
+                name: p.name,
+                document_type: t,
+                status: 'pendent',
+                rejection_reason: undefined,
+                file_path: undefined,
+                created_at: null,
+              });
+            }
+          });
+        });
+        setDocuments(filled);
       }
     } catch (err) {
       console.error('Error:', err);
@@ -210,7 +251,7 @@ export default function CapitaDocuments() {
                             )}
                             <div className="flex-1">
                               <p className="font-medium text-[#2C2C2A] capitalize">
-                                {doc.document_type === 'dni' ? 'DNI' : 'Assegurança mèdica'}
+                                {DOC_LABELS[doc.document_type] || doc.document_type}
                               </p>
                               {doc.rejection_reason && (
                                 <p className="text-[12px] text-[#A32D2D]">Motiu: {doc.rejection_reason}</p>

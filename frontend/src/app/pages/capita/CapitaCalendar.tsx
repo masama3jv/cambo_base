@@ -33,7 +33,14 @@ export default function CapitaCalendar() {
         const contentType = response.headers.get('content-type');
         if (contentType && contentType.includes('application/json')) {
           const data = await response.json();
-          setMatches(data.matches || []);
+          setMatches(Array.isArray(data) ? data.map((m: any) => ({
+            id: m.id,
+            date: new Date(m.match_date).toLocaleDateString('ca-ES', { day: 'numeric', month: 'long', year: 'numeric' }),
+            time: new Date(m.match_date).toLocaleTimeString('ca-ES', { hour: '2-digit', minute: '2-digit' }),
+            opponent: `${m.home_team_name} vs ${m.away_team_name}`,
+            court: m.court_name || '-',
+            status: m.status === 'pendent' ? 'pending' as const : m.status === 'en_curs' ? 'confirmed' as const : 'played' as const,
+          })) : []);
         } else {
           throw new Error('Invalid response from server');
         }

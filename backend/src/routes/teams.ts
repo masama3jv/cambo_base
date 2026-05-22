@@ -1,10 +1,15 @@
 import express, { Router } from 'express';
-import { randomUUID } from 'crypto';
+import { randomUUID, randomInt } from 'crypto';
 import { query } from '../db/connection.js';
 import { verifyToken, AuthRequest, requireRole } from '../middleware/auth.js';
 import { sendInvitationEmail, sendInvitationEmailFireAndForget } from '../services/emailService.js';
 
 const router: Router = express.Router();
+
+function generateInviteCode(): string {
+  const num = randomInt(1000, 9999);
+  return `CB-${num}`;
+}
 
 // GET /api/teams - Get user's teams
 router.get('/', verifyToken, async (req: AuthRequest, res) => {
@@ -39,9 +44,16 @@ router.post('/', verifyToken, requireRole(['capita']), async (req: AuthRequest, 
       return res.status(400).json({ error: 'Team name and sport are required' });
     }
 
+    // Generate unique invite code
+    let inviteCode = generateInviteCode();
+    const existing = await query('SELECT id FROM teams WHERE invite_code = ?', [inviteCode]) as any[];
+    if (existing.length > 0) {
+      inviteCode = generateInviteCode();
+    }
+
     const result = await query(
-      'INSERT INTO teams (name, sport, capita_id, status) VALUES (?, ?, ?, ?)',
-      [name, sport, req.userId, 'pendent_docs']
+      'INSERT INTO teams (name, sport, capita_id, status, invite_code) VALUES (?, ?, ?, ?, ?)',
+      [name, sport, req.userId, 'pendent_docs', inviteCode]
     ) as any;
 
     // Add capita as team player
@@ -55,7 +67,8 @@ router.post('/', verifyToken, requireRole(['capita']), async (req: AuthRequest, 
       name,
       sport,
       capita_id: req.userId,
-      status: 'pendent_docs'
+      status: 'pendent_docs',
+      invite_code: inviteCode
     });
   } catch (error) {
     console.error('Error creating team:', error);
@@ -180,6 +193,64 @@ router.post('/:id/invite-player', verifyToken, requireRole(['capita']), async (r
   } catch (error) {
     console.error('Error inviting player:', error);
     res.status(500).json({ error: 'Failed to invite player' });
+  }
+});
+
+// POST /api/teams/join-by-code - Join a team by invite code
+router.post('/join-by-code', verifyToken, async (req: AuthRequest, res) => {
+  try {
+    const { code } = req.body;
+
+    if (!code) {
+      return res.status(400).json({ error: 'Codi obligatori' });
+    }
+
+    // Find team by invite code
+    const teams = await query('SELECT * FROM teams WHERE invite_code = ?', [code.toUpperCase()]) as any[];
+
+    if (teams.length === 0) {
+      return res.status(404).json({ error: 'Codi no vàlid' });
+    }
+
+    const team = teams[0];
+
+    // Check if player is already in team
+    const existing = await query(
+      'SELECT * FROM team_players WHERE team_id = ? AND user_id = ?',
+      [team.id, req.userId]
+    ) as any[];
+
+    if (existing.length > 0) {
+      return res.status(400).json({ error: 'Ja ets membre d\'aquest equip' });
+    }
+
+    // Add player to team
+    await query(
+      'INSERT INTO team_players (team_id, user_id) VALUES (?, ?)',
+      [team.id, req.userId]
+    );
+
+    res.json({ message: 'T\'has unit a l\'equip correctament', team: { id: team.id, name: team.name, sport: team.sport } });
+  } catch (error) {
+    console.error('Error joining team by code:', error);
+    res.status(500).json({ error: 'Error en unir-se a l\'equip' });
+  }
+});
+
+// GET /api/teams/check-code/:code - Check if an invite code is valid
+router.get('/check-code/:code', async (req: AuthRequest, res) => {
+  try {
+    const { code } = req.params;
+    const teams = await query('SELECT id, name, sport FROM teams WHERE invite_code = ?', [code.toUpperCase()]) as any[];
+
+    if (teams.length === 0) {
+      return res.status(404).json({ error: 'Codi no vàlid' });
+    }
+
+    res.json({ team: teams[0] });
+  } catch (error) {
+    console.error('Error checking invite code:', error);
+    res.status(500).json({ error: 'Error en verificar el codi' });
   }
 });
 

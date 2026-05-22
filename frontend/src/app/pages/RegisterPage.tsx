@@ -20,6 +20,7 @@ export default function RegisterPage() {
     email: '',
     password: '',
     confirmPassword: '',
+    teamCode: '',
   });
   const [error, setError] = useState('');
   const [invitationData, setInvitationData] = useState<any>(null);
@@ -100,8 +101,19 @@ export default function RegisterPage() {
         // Redirect to dashboard
         navigate('/dashboard');
       } else {
-        // Normal registration (new capita)
+        // Normal registration
         await register(formData.name, formData.email, formData.password, formData.confirmPassword);
+
+        // If team code provided, join the team
+        if (formData.teamCode) {
+          const token = localStorage.getItem('token');
+          await fetch(`${API_BASE_URL}/teams/join-by-code`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ code: formData.teamCode }),
+          });
+        }
+
         navigate('/dashboard');
       }
     } catch (err) {
@@ -131,7 +143,7 @@ export default function RegisterPage() {
           
           {!invitationToken && (
             <div className="flex justify-center">
-              <Badge variant="info">Se t'assignarà el rol de Capità</Badge>
+              <Badge variant="info">Se t'assignarà el rol de Capità (o Jugador si introdueixes un codi d'equip)</Badge>
             </div>
           )}
         </div>
@@ -168,6 +180,17 @@ export default function RegisterPage() {
               required
               disabled={isLoading || !!invitationToken}
             />
+
+            {!invitationToken && (
+              <Input
+                type="text"
+                label="Codi d'equip (opcional)"
+                placeholder="Ex. CB-2847"
+                value={formData.teamCode || ''}
+                onChange={(e) => setFormData({ ...formData, teamCode: e.target.value.toUpperCase() })}
+                disabled={isLoading}
+              />
+            )}
             
             <Input
               type="password"

@@ -386,4 +386,55 @@ router.get('/download-document/:documentId', verifyToken, async (req: AuthReques
   }
 });
 
+// POST /api/team/simulate-payment - Simulated payment (sets team to inscrit)
+router.post('/simulate-payment', verifyToken, async (req: AuthRequest, res) => {
+  try {
+    const { teamId } = req.body;
+
+    if (!teamId) {
+      return res.status(400).json({ error: 'Team ID required' });
+    }
+
+    // Verify team ownership
+    const teams = await query('SELECT * FROM teams WHERE id = ? AND capita_id = ?', [teamId, req.userId]) as any[];
+
+    if (teams.length === 0) {
+      return res.status(403).json({ error: 'Team not found or access denied' });
+    }
+
+    // Check team is in pendent_pagament state
+    if (teams[0].status !== 'pendent_pagament') {
+      return res.status(400).json({ error: `L\'equip no està en estat de pagament (estat actual: ${teams[0].status})` });
+    }
+
+    // Update team status to inscrit
+    await query('UPDATE teams SET status = ? WHERE id = ?', ['inscrit', teamId]);
+
+    // Create/update inscription
+    const inscriptions = await query(
+      'SELECT * FROM inscriptions WHERE team_id = ?',
+      [teamId]
+    ) as any[];
+
+    const amount = req.body.amount || 150;
+
+    if (inscriptions.length > 0) {
+      await query(
+        'UPDATE inscriptions SET status = ?, amount = ?, payment_date = NOW() WHERE team_id = ?',
+        ['inscrit', amount, teamId]
+      );
+    } else {
+      await query(
+        'INSERT INTO inscriptions (team_id, tournament_id, status, amount, payment_date) VALUES (?, ?, ?, ?, NOW())',
+        [teamId, 1, 'inscrit', amount]
+      );
+    }
+
+    res.json({ message: 'Pagament simulat correctament', status: 'inscrit' });
+  } catch (error) {
+    console.error('Error simulating payment:', error);
+    res.status(500).json({ error: 'Failed to simulate payment' });
+  }
+});
+
 export default router;

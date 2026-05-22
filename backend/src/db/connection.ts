@@ -55,7 +55,15 @@ async function runMigrations() {
     console.log('✓ Migration: courts.tournament_id set to nullable');
   } catch (err: any) {
     if (err.code !== 'ER_DUP_FIELDNAME' && err.code !== 'ER_CANT_DROP_FIELD_OR_KEY') {
-      console.warn('Migration note (non-fatal):', err.message);
+      console.warn('Migration note (non-fatal) 1:', err.message);
+    }
+  }
+  try {
+    await pool.execute('ALTER TABLE teams ADD COLUMN invite_code VARCHAR(10) NULL UNIQUE AFTER sport');
+    console.log('✓ Migration: teams.invite_code added');
+  } catch (err: any) {
+    if (err.code !== 'ER_DUP_FIELDNAME' && err.code !== 'ER_DUP_FIELD' && !err.message?.includes('Duplicate column')) {
+      console.warn('Migration note (non-fatal) 2:', err.message);
     }
   }
 }
