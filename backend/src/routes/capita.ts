@@ -36,13 +36,14 @@ router.get('/dashboard', verifyToken, async (req: AuthRequest, res) => {
     // Get team statistics
     const stats = await query(`
       SELECT 
-        COUNT(CASE WHEN (home_team_id = ? AND home_score > away_score) OR (away_team_id = ? AND away_score > home_score) THEN 1 END) as wins,
-        COUNT(CASE WHEN home_score = away_score THEN 1 END) as draws,
-        COUNT(CASE WHEN (home_team_id = ? AND home_score < away_score) OR (away_team_id = ? AND away_score < home_score) THEN 1 END) as losses,
+        COUNT(CASE WHEN (m.home_team_id = ? AND ms.home_score > ms.away_score) OR (m.away_team_id = ? AND ms.away_score > ms.home_score) THEN 1 END) as wins,
+        COUNT(CASE WHEN ms.home_score = ms.away_score THEN 1 END) as draws,
+        COUNT(CASE WHEN (m.home_team_id = ? AND ms.home_score < ms.away_score) OR (m.away_team_id = ? AND ms.away_score < ms.home_score) THEN 1 END) as losses,
         COUNT(*) as matches_played
-      FROM matches
-      WHERE (home_team_id = ? OR away_team_id = ?)
-      AND status = 'finalitzat'
+      FROM matches m
+      JOIN match_sheets ms ON m.id = ms.match_id
+      WHERE (m.home_team_id = ? OR m.away_team_id = ?)
+      AND m.status = 'finalitzat'
     `, [team.id, team.id, team.id, team.id, team.id, team.id]) as any[];
 
     // Get pending documents
@@ -149,11 +150,12 @@ router.get('/team/statistics', verifyToken, async (req: AuthRequest, res) => {
     // Get overall stats
     const overallStats = await query(`
       SELECT 
-        COUNT(CASE WHEN (home_team_id = ? AND home_score > away_score) OR (away_team_id = ? AND away_score > home_score) THEN 1 END) as wins,
-        COUNT(CASE WHEN home_score = away_score THEN 1 END) as draws,
-        COUNT(CASE WHEN (home_team_id = ? AND home_score < away_score) OR (away_team_id = ? AND away_score < home_score) THEN 1 END) as losses
-      FROM matches
-      WHERE (home_team_id = ? OR away_team_id = ?) AND status = 'finalitzat'
+        COUNT(CASE WHEN (m.home_team_id = ? AND ms.home_score > ms.away_score) OR (m.away_team_id = ? AND ms.away_score > ms.home_score) THEN 1 END) as wins,
+        COUNT(CASE WHEN ms.home_score = ms.away_score THEN 1 END) as draws,
+        COUNT(CASE WHEN (m.home_team_id = ? AND ms.home_score < ms.away_score) OR (m.away_team_id = ? AND ms.away_score < ms.home_score) THEN 1 END) as losses
+      FROM matches m
+      JOIN match_sheets ms ON m.id = ms.match_id
+      WHERE (m.home_team_id = ? OR m.away_team_id = ?) AND m.status = 'finalitzat'
     `, [teamId, teamId, teamId, teamId, teamId, teamId]) as any[];
 
     // Get player statistics
@@ -161,11 +163,12 @@ router.get('/team/statistics', verifyToken, async (req: AuthRequest, res) => {
       SELECT 
         u.id,
         u.name,
-        COUNT(DISTINCT CASE WHEN (m.home_team_id = tp.team_id AND m.home_score > m.away_score) OR (m.away_team_id = tp.team_id AND m.away_score > m.home_score) THEN m.id END) as wins,
+        COUNT(DISTINCT CASE WHEN (m.home_team_id = tp.team_id AND ms.home_score > ms.away_score) OR (m.away_team_id = tp.team_id AND ms.away_score > ms.home_score) THEN m.id END) as wins,
         COUNT(DISTINCT m.id) as matches_played
       FROM team_players tp
       JOIN users u ON tp.user_id = u.id
       LEFT JOIN matches m ON (m.home_team_id = tp.team_id OR m.away_team_id = tp.team_id) AND m.status = 'finalitzat'
+      LEFT JOIN match_sheets ms ON m.id = ms.match_id
       WHERE tp.team_id = ?
       GROUP BY tp.user_id
       ORDER BY wins DESC
