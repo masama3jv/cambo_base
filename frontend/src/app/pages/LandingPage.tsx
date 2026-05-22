@@ -5,7 +5,7 @@ import { Badge } from '../components/Badge';
 import { Card } from '../components/Card';
 import { CheckCircle, Calendar, FileCheck, Clock, Trophy, Mail, Phone, MapPin, Users, ArrowRight } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { API_BASE_URL, API_UPLOADS_URL } from '../services/api';
+import { API_BASE_URL } from '../services/api';
 
 interface Match {
   teams: string;
@@ -90,11 +90,58 @@ export default function LandingPage() {
             <div className="absolute inset-0 bg-gradient-to-r from-[#D85A30]/10 to-[#EAF3DE]/10 rounded-3xl filter blur-3xl -z-10" />
             
             <div className="w-full max-w-[450px] aspect-square rounded-2xl border border-white/50 bg-white/20 backdrop-blur-md p-4 shadow-2xl transition-all duration-500 hover:scale-[1.02] hover:-rotate-1">
-              <img 
-                src={`${API_UPLOADS_URL}/campobase_hero_banner.png`} 
-                alt="CampoBase Sports Platform Illustration"
-                className="w-full h-full object-cover rounded-xl shadow-inner bg-slate-900/5"
-              />
+              <svg viewBox="0 0 400 400" className="w-full h-full rounded-xl shadow-inner" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stopColor="#1a1a2e"/>
+                    <stop offset="100%" stopColor="#16213e"/>
+                  </linearGradient>
+                  <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="#D85A30"/>
+                    <stop offset="100%" stopColor="#E37A56"/>
+                  </linearGradient>
+                  <linearGradient id="field" x1="0.5" y1="0" x2="0.5" y2="1">
+                    <stop offset="0%" stopColor="#2d5a27"/>
+                    <stop offset="100%" stopColor="#1e3d1a"/>
+                  </linearGradient>
+                </defs>
+                <rect width="400" height="400" fill="url(#bg)" rx="16"/>
+                {/* Field circle */}
+                <circle cx="200" cy="200" r="120" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="2"/>
+                <circle cx="200" cy="200" r="80" fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth="1"/>
+                {/* Center line */}
+                <line x1="200" y1="80" x2="200" y2="320" stroke="rgba(255,255,255,0.04)" strokeWidth="1"/>
+                {/* Decorative dots */}
+                <circle cx="140" cy="140" r="3" fill="#D85A30" opacity="0.3"/>
+                <circle cx="260" cy="150" r="2" fill="#E37A56" opacity="0.2"/>
+                <circle cx="160" cy="260" r="2.5" fill="#D85A30" opacity="0.25"/>
+                <circle cx="250" cy="250" r="3" fill="#E37A56" opacity="0.3"/>
+                <circle cx="120" cy="200" r="1.5" fill="white" opacity="0.1"/>
+                <circle cx="280" cy="200" r="2" fill="white" opacity="0.15"/>
+                {/* Trophy icon */}
+                <g transform="translate(200, 130)">
+                  <path d="M-20,-15 C-30,-10 -35,0 -30,10 C-25,20 -15,25 -5,25 L5,25 C15,25 25,20 30,10 C35,0 30,-10 20,-15 Z" fill="url(#accent)" opacity="0.9"/>
+                  <rect x="-8" y="25" width="16" height="8" rx="2" fill="#D85A30" opacity="0.7"/>
+                  <rect x="-4" y="33" width="8" height="10" rx="2" fill="#D85A30" opacity="0.5"/>
+                  <path d="M-12,-12 L-30,-18 L-28,-8 Z" fill="#D85A30" opacity="0.4"/>
+                  <path d="M12,-12 L30,-18 L28,-8 Z" fill="#D85A30" opacity="0.4"/>
+                </g>
+                {/* Campo Base text */}
+                <text x="200" y="240" textAnchor="middle" fontFamily="Arial, sans-serif" fontSize="36" fontWeight="bold" fill="white" letterSpacing="3">CAMPOBASE</text>
+                <text x="200" y="265" textAnchor="middle" fontFamily="Arial, sans-serif" fontSize="12" fill="rgba(255,255,255,0.5)" letterSpacing="6">SPORTS</text>
+                {/* Decorative line under text */}
+                <line x1="130" y1="278" x2="270" y2="278" stroke="url(#accent)" strokeWidth="2" opacity="0.7"/>
+                {/* Small field at bottom */}
+                <rect x="150" y="310" width="100" height="50" rx="4" fill="url(#field)" opacity="0.4"/>
+                <rect x="160" y="320" width="80" height="30" rx="2" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="1"/>
+                <line x1="200" y1="310" x2="200" y2="360" stroke="rgba(255,255,255,0.1)" strokeWidth="1"/>
+                <circle cx="200" cy="335" r="6" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="1"/>
+                {/* Small dots representing players */}
+                <circle cx="175" cy="330" r="2" fill="#D85A30" opacity="0.6"/>
+                <circle cx="185" cy="340" r="2" fill="#D85A30" opacity="0.6"/>
+                <circle cx="215" cy="330" r="2" fill="#E37A56" opacity="0.6"/>
+                <circle cx="225" cy="340" r="2" fill="#E37A56" opacity="0.6"/>
+              </svg>
             </div>
           </div>
         </div>
