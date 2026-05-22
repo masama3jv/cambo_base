@@ -17,7 +17,9 @@ async function initializeTransporter() {
       auth: {
         user: process.env.SMTP_USER!,
         pass: process.env.SMTP_PASS!
-      }
+      },
+      connectionTimeout: 10000,
+      greetingTimeout: 10000
     });
     console.log('SMTP configured with host:', process.env.SMTP_HOST);
   } else {
@@ -34,13 +36,22 @@ async function initializeTransporter() {
         auth: {
           user: testAccount.user,
           pass: testAccount.pass
-        }
+        },
+        connectionTimeout: 10000,
+        greetingTimeout: 10000
       });
       console.log('✓ Ethereal test account created:', testAccount.user);
     } catch (err) {
       console.error('Failed to create Ethereal test account:', err);
-      // Last resort: no real transport, will log to console instead
     }
+  }
+}
+
+export async function initEmailOnStartup() {
+  try {
+    await initializeTransporter();
+  } catch (err) {
+    console.error('Email transporter init on startup failed:', err);
   }
 }
 
@@ -78,6 +89,12 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
     console.error('Error sending email:', error);
     return false;
   }
+}
+
+export function sendEmailFireAndForget(options: EmailOptions) {
+  sendEmail(options).catch(err => {
+    console.error('Background email send failed:', err);
+  });
 }
 
 export async function sendInvitationEmail(
@@ -152,5 +169,16 @@ export async function sendInvitationEmail(
     to: toEmail,
     subject: `T'han convidat a unir-te al equip ${teamName} - Campo Base`,
     html
+  });
+}
+
+export function sendInvitationEmailFireAndForget(
+  toEmail: string,
+  teamName: string,
+  invitationToken: string,
+  inviterName: string
+) {
+  sendInvitationEmail(toEmail, teamName, invitationToken, inviterName).catch(err => {
+    console.error('Background invitation email failed:', err);
   });
 }

@@ -2,7 +2,7 @@ import express, { Router } from 'express';
 import { randomUUID } from 'crypto';
 import { query } from '../db/connection.js';
 import { verifyToken, AuthRequest, requireRole } from '../middleware/auth.js';
-import { sendInvitationEmail } from '../services/emailService.js';
+import { sendInvitationEmail, sendInvitationEmailFireAndForget } from '../services/emailService.js';
 
 const router: Router = express.Router();
 
@@ -167,18 +167,14 @@ router.post('/:id/invite-player', verifyToken, requireRole(['capita']), async (r
         [id, email, token, expiresAt]
       );
 
-      // Send invitation email
-      const emailSent = await sendInvitationEmail(email, teamName, token, inviterName);
-
-      if (!emailSent) {
-        console.warn('Email sending failed, but invitation was created');
-      }
+      // Send invitation email in background (don't block response)
+      sendInvitationEmailFireAndForget(email, teamName, token, inviterName);
 
       res.json({ 
         message: `Invitació enviada a ${email}`, 
         success: true,
         token,
-        emailSent 
+        emailSent: true
       });
     }
   } catch (error) {

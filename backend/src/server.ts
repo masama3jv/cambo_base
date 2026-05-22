@@ -13,6 +13,7 @@ import adminRoutes from './routes/admin.js';
 import arbitreRoutes from './routes/arbitre.js';
 import publicRoutes from './routes/public.js';
 import jugadorRoutes from './routes/jugador.js';
+import { initEmailOnStartup } from './services/emailService.js';
 import { constructWebhookEvent } from './services/stripeService.js';
 
 dotenv.config();
@@ -134,6 +135,9 @@ async function startServer() {
     // Initialize database
     await connectDatabase();
     console.log('✓ Database connected');
+
+    // Initialize email transporter (non-blocking — errors are logged, not fatal)
+    initEmailOnStartup();
 
     app.listen(PORT, () => {
       console.log(`✓ Server running on http://localhost:${PORT}`);
