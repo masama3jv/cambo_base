@@ -78,11 +78,11 @@ router.get('/inscription-data', verifyToken, async (req: AuthRequest, res) => {
       GROUP BY tp.user_id
     `, [team.id, team.id]) as any[];
 
-    // Check if all documents are ready
+    // Check if all documents are ready (DNI + insurance + image rights)
     const allDocsReady = documents.every(doc => {
       if (!doc.doc_status) return false;
       const statuses = doc.doc_status.split(';');
-      return statuses.includes('dni:aprovat') && statuses.includes('asseguranca:aprovat');
+      return statuses.includes('dni:aprovat') && statuses.includes('asseguranca:aprovat') && statuses.includes('image_rights:aprovat');
     });
 
     // Get inscription data if exists
@@ -170,8 +170,8 @@ router.post('/process-payment', verifyToken, async (req: AuthRequest, res) => {
       return res.status(400).json({ error: 'Payment intent ID required' });
     }
 
-    // Update team status
-    await query('UPDATE teams SET status = ? WHERE id = ?', ['pendent_validacio', teamId]);
+    // Update team status to inscrit
+    await query('UPDATE teams SET status = ? WHERE id = ?', ['inscrit', teamId]);
 
     // Create/update inscription
     const inscriptions = await query(
@@ -182,16 +182,16 @@ router.post('/process-payment', verifyToken, async (req: AuthRequest, res) => {
     if (inscriptions.length > 0) {
       await query(
         'UPDATE inscriptions SET status = ?, amount = ?, payment_date = NOW() WHERE team_id = ?',
-        ['pendent_validacio', amount, teamId]
+        ['inscrit', amount, teamId]
       );
     } else {
       await query(
         'INSERT INTO inscriptions (team_id, tournament_id, status, amount, payment_date) VALUES (?, ?, ?, ?, NOW())',
-        [teamId, 1, 'pendent_validacio', amount]
+        [teamId, 1, 'inscrit', amount]
       );
     }
 
-    res.json({ message: 'Payment processed successfully', status: 'pendent_validacio' });
+    res.json({ message: 'Payment processed successfully', status: 'inscrit' });
   } catch (error) {
     console.error('Error processing payment:', error);
     res.status(500).json({ error: 'Failed to process payment' });
@@ -383,57 +383,6 @@ router.get('/download-document/:documentId', verifyToken, async (req: AuthReques
   } catch (error) {
     console.error('Error downloading document:', error);
     res.status(500).json({ error: 'Failed to download document' });
-  }
-});
-
-// POST /api/team/simulate-payment - Simulated payment (sets team to inscrit)
-router.post('/simulate-payment', verifyToken, async (req: AuthRequest, res) => {
-  try {
-    const { teamId } = req.body;
-
-    if (!teamId) {
-      return res.status(400).json({ error: 'Team ID required' });
-    }
-
-    // Verify team ownership
-    const teams = await query('SELECT * FROM teams WHERE id = ? AND capita_id = ?', [teamId, req.userId]) as any[];
-
-    if (teams.length === 0) {
-      return res.status(403).json({ error: 'Team not found or access denied' });
-    }
-
-    // Check team is in pendent_pagament state
-    if (teams[0].status !== 'pendent_pagament') {
-      return res.status(400).json({ error: `L\'equip no està en estat de pagament (estat actual: ${teams[0].status})` });
-    }
-
-    // Update team status to inscrit
-    await query('UPDATE teams SET status = ? WHERE id = ?', ['inscrit', teamId]);
-
-    // Create/update inscription
-    const inscriptions = await query(
-      'SELECT * FROM inscriptions WHERE team_id = ?',
-      [teamId]
-    ) as any[];
-
-    const amount = req.body.amount || 150;
-
-    if (inscriptions.length > 0) {
-      await query(
-        'UPDATE inscriptions SET status = ?, amount = ?, payment_date = NOW() WHERE team_id = ?',
-        ['inscrit', amount, teamId]
-      );
-    } else {
-      await query(
-        'INSERT INTO inscriptions (team_id, tournament_id, status, amount, payment_date) VALUES (?, ?, ?, ?, NOW())',
-        [teamId, 1, 'inscrit', amount]
-      );
-    }
-
-    res.json({ message: 'Pagament simulat correctament', status: 'inscrit' });
-  } catch (error) {
-    console.error('Error simulating payment:', error);
-    res.status(500).json({ error: 'Failed to simulate payment' });
   }
 });
 

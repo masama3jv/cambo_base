@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router';
-import { Home, Users, FileText, ClipboardList, Calendar, BarChart3, Bell, Settings, LogOut } from 'lucide-react';
+import { Home, Users, FileText, ClipboardList, Calendar, BarChart3, Bell, Settings, LogOut, Trophy } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 interface SidebarProps {
@@ -25,7 +25,8 @@ export function Sidebar({ role }: SidebarProps) {
     { path: '/jugador/dashboard', label: 'Dashboard', icon: Home },
     { path: '/jugador/calendar', label: 'Calendari', icon: Calendar },
     { path: '/jugador/stats', label: 'Estadístiques', icon: BarChart3 },
-    { path: '/jugador/profile', label: 'El meu perfil', icon: Users },
+    { path: '/jugador/team', label: 'El meu equip', icon: Users },
+    { path: '/jugador/profile', label: 'El meu perfil', icon: FileText },
   ];
 
   const adminLinks = [
@@ -38,7 +39,7 @@ export function Sidebar({ role }: SidebarProps) {
   ];
 
   const arbitreLinks = [
-    { path: '/arbitre/partits', label: 'Els meus partits', icon: ClipboardList },
+    { path: '/arbitre/partits', label: 'Els meus torneigs', icon: Trophy },
   ];
 
   const links = role === 'capita' ? capitaLinks :

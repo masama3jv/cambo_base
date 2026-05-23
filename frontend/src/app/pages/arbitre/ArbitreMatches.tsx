@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { Edit3, Clock, MapPin, AlertCircle, CheckCircle, Download, Lock } from 'lucide-react';
+import { Link, useParams, useNavigate } from 'react-router-dom';
+import { Edit3, Clock, MapPin, AlertCircle, CheckCircle, Download, Lock, ArrowLeft } from 'lucide-react';
 import { API_BASE_URL } from '../../services/api';
 
 interface Match {
@@ -16,24 +16,42 @@ interface Match {
 }
 
 export default function ArbitreMatches() {
+  const { tournamentId } = useParams();
+  const navigate = useNavigate();
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [downloading, setDownloading] = useState<number | null>(null);
+  const [tournamentName, setTournamentName] = useState('');
 
   useEffect(() => {
     fetchMatches();
-  }, []);
+  }, [tournamentId]);
 
   const fetchMatches = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE_URL}/arbitre/matches`, {
+      const url = tournamentId
+        ? `${API_BASE_URL}/arbitre/matches?tournamentId=${tournamentId}`
+        : `${API_BASE_URL}/arbitre/matches`;
+      const response = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (!response.ok) throw new Error('Failed to fetch matches');
       const data = await response.json();
       setMatches(data);
+
+      // Try to get tournament name from first match's tournament
+      if (data.length > 0 && tournamentId) {
+        const tRes = await fetch(`${API_BASE_URL}/arbitre/tournaments`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (tRes.ok) {
+          const tournaments = await tRes.json();
+          const t = tournaments.find((t: any) => t.id === parseInt(tournamentId));
+          if (t) setTournamentName(t.name);
+        }
+      }
       setLoading(false);
     } catch (err) {
       setError('Error carregant partits');
@@ -109,7 +127,14 @@ export default function ArbitreMatches() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#FAECE7] to-white p-4">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold text-[#D85A30] mb-2">Els meus partits</h1>
+        {tournamentId && (
+          <button onClick={() => navigate('/arbitre/partits')} className="flex items-center gap-2 text-[#5F5E5A] hover:text-[#D85A30] mb-4 transition-colors">
+            <ArrowLeft size={18} /> Tots els torneigs
+          </button>
+        )}
+        <h1 className="text-3xl font-bold text-[#D85A30] mb-2">
+          {tournamentName || 'Els meus partits'}
+        </h1>
         <p className="text-gray-600 mb-8">Total: {matches.length} partits</p>
 
         {matches.length === 0 ? (

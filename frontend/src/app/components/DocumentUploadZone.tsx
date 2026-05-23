@@ -5,7 +5,7 @@ import { API_BASE_URL } from '../services/api';
 interface DocumentUploadZoneProps {
   userId: number;
   teamId: number;
-  documentType: 'dni' | 'asseguranca' | 'altres';
+  documentType: 'dni' | 'asseguranca' | 'image_rights';
   onUploadSuccess?: () => void;
   currentFile?: string;
 }
@@ -24,8 +24,8 @@ export default function DocumentUploadZone({
 
   const documentTypeLabels = {
     dni: 'DNI / Carnet d\'identitat',
-    asseguranca: 'Assegurança',
-    altres: 'Altres documents'
+    asseguranca: 'Assegurança mèdica',
+    image_rights: 'Dret d\'imatge'
   };
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {

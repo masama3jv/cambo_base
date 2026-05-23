@@ -16,12 +16,33 @@ import path from 'path';
 
 const router: Router = express.Router();
 
-// GET /api/arbitre/matches - Get referee's assigned matches
+// GET /api/arbitre/tournaments - Get tournaments where referee has matches
+router.get('/tournaments', verifyToken, requireRole(['arbitre']), async (req: AuthRequest, res) => {
+  try {
+    const tournaments = await query(`
+      SELECT DISTINCT t.id, t.name, t.sport, t.start_date, t.end_date, t.status,
+        (SELECT COUNT(*) FROM matches m2 WHERE m2.tournament_id = t.id AND m2.arbitre_id = ?) as match_count,
+        (SELECT COUNT(*) FROM matches m2 WHERE m2.tournament_id = t.id AND m2.arbitre_id = ? AND m2.status = 'finalitzat') as completed_count
+      FROM tournaments t
+      JOIN matches m ON m.tournament_id = t.id
+      WHERE m.arbitre_id = ?
+      ORDER BY t.start_date DESC
+    `, [req.userId, req.userId, req.userId]);
+
+    res.json(tournaments);
+  } catch (error) {
+    console.error('Error fetching referee tournaments:', error);
+    res.status(500).json({ error: 'Failed to fetch tournaments' });
+  }
+});
+
+// GET /api/arbitre/matches?tournamentId=X - Get referee's assigned matches
 router.get('/matches', verifyToken, requireRole(['arbitre']), async (req: AuthRequest, res) => {
   try {
-    const matches = await query(`
+    const tournamentId = req.query.tournamentId as string;
+    let sql = `
       SELECT 
-        m.*,
+        m.*, m.sport,
         t1.name as home_team_name,
         t2.name as away_team_name,
         c.name as court_name,
@@ -33,8 +54,17 @@ router.get('/matches', verifyToken, requireRole(['arbitre']), async (req: AuthRe
       LEFT JOIN courts c ON m.court_id = c.id
       LEFT JOIN match_sheets ms ON m.id = ms.match_id
       WHERE m.arbitre_id = ?
-      ORDER BY m.match_date DESC
-    `, [req.userId]);
+    `;
+    const params: any[] = [req.userId];
+
+    if (tournamentId) {
+      sql += ' AND m.tournament_id = ?';
+      params.push(parseInt(tournamentId));
+    }
+
+    sql += ' ORDER BY m.match_date DESC';
+
+    const matches = await query(sql, params);
 
     res.json(matches);
   } catch (error) {

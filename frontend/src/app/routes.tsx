@@ -15,12 +15,13 @@ import JugadorDashboard from "./pages/jugador/JugadorDashboard";
 import JugadorCalendar from "./pages/jugador/JugadorCalendar";
 import JugadorStats from "./pages/jugador/JugadorStats";
 import JugadorProfile from "./pages/jugador/JugadorProfile";
+import JugadorTeam from "./pages/jugador/JugadorTeam";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminInscriptions from "./pages/admin/AdminInscriptions";
 import AdminConfigurator from "./pages/admin/AdminConfigurator";
-import AdminCalendarGenerator from "./pages/admin/AdminCalendarGenerator";
 import AdminReferees from "./pages/admin/AdminReferees";
 import AdminVenues from "./pages/admin/AdminVenues";
+import ArbitreTournaments from "./pages/arbitre/ArbitreTournaments";
 import ArbitreMatches from "./pages/arbitre/ArbitreMatches";
 import ArbitreMatchSheet from "./pages/arbitre/ArbitreMatchSheet";
 import NotFoundPage from "./pages/NotFoundPage";
@@ -79,6 +80,10 @@ export const router = createBrowserRouter([
     path: "/jugador/profile",
     element: <ProtectedRoute allowedRoles={['jugador']}><JugadorProfile /></ProtectedRoute>,
   },
+  {
+    path: "/jugador/team",
+    element: <ProtectedRoute allowedRoles={['jugador']}><JugadorTeam /></ProtectedRoute>,
+  },
 
   // Admin routes
   {
@@ -95,7 +100,7 @@ export const router = createBrowserRouter([
   },
   {
     path: "/admin/calendar",
-    element: <ProtectedRoute allowedRoles={['admin']}><AdminCalendarGenerator /></ProtectedRoute>,
+    element: <ProtectedRoute allowedRoles={['admin']}><AdminConfigurator /></ProtectedRoute>,
   },
   {
     path: "/admin/venues",
@@ -109,6 +114,10 @@ export const router = createBrowserRouter([
   // Arbitre routes
   {
     path: "/arbitre/partits",
+    element: <ProtectedRoute allowedRoles={['arbitre']}><ArbitreTournaments /></ProtectedRoute>,
+  },
+  {
+    path: "/arbitre/partits/:tournamentId",
     element: <ProtectedRoute allowedRoles={['arbitre']}><ArbitreMatches /></ProtectedRoute>,
   },
   {

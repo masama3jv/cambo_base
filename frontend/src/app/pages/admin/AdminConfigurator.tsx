@@ -23,11 +23,14 @@ export default function AdminConfigurator() {
   };
 
   const [formData, setFormData] = useState({
+    tournamentName: '',
+    sport: 'futsal',
     numCourts: 2,
     courts: [{ name: 'Pista 1' as string, location: 'Pavellò A' as string }, { name: 'Pista 2' as string, location: 'Pavellò A' as string }],
     format: 'mixt' as string,
     teamsPerGroup: 4,
     winPoints: 3, drawPoints: 1, lossPoints: 0,
+    tiebreaker: 'goal_difference' as string,
     matchDuration: 40, breakBetween: 5,
     startDate: '', endDate: '', matchesPerDay: 4,
   });
@@ -50,6 +53,8 @@ export default function AdminConfigurator() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
+          tournamentName: formData.tournamentName || `Torneig-${Date.now()}`,
+          sport: formData.sport,
           format: formatMap[formData.format] || formData.format,
           startDate: formData.startDate,
           endDate: formData.endDate,
@@ -57,6 +62,10 @@ export default function AdminConfigurator() {
           breakMinutes: formData.breakBetween,
           courts: formData.courts.map(c => c.name),
           matchesPerDay: formData.matchesPerDay,
+          winPoints: formData.winPoints,
+          drawPoints: formData.drawPoints,
+          lossPoints: formData.lossPoints,
+          tiebreaker: formData.tiebreaker,
         }),
       });
 
@@ -138,6 +147,20 @@ export default function AdminConfigurator() {
             {/* Step 1 */}
             {currentStep === 1 && (
               <div>
+                <h3 className="mb-6">Informació del torneig</h3>
+                <div className="space-y-4 mb-8">
+                  <Input label="Nom del torneig" value={formData.tournamentName}
+                    onChange={(e) => setFormData({ ...formData, tournamentName: e.target.value })} placeholder="Ex: Lliga d'estiu 2026" />
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Esport</label>
+                    <select value={formData.sport} onChange={(e) => setFormData({ ...formData, sport: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#D85A30]">
+                      <option value="futsal">Futbol Sala</option>
+                      <option value="basquet3x3">Bàsquet 3x3</option>
+                      <option value="padel">Pàdel</option>
+                    </select>
+                  </div>
+                </div>
                 <h3 className="mb-6">Instal·lacions</h3>
                 <div className="space-y-6">
                   <Input type="number" label="Nombre de pistes" value={formData.numCourts}
@@ -182,13 +205,23 @@ export default function AdminConfigurator() {
             {currentStep === 3 && (
               <div>
                 <h3 className="mb-6">Sistema de puntuació</h3>
-                <div className="grid grid-cols-3 gap-6">
+                <div className="grid grid-cols-3 gap-6 mb-6">
                   <Input type="number" label="Punts per victòria" value={formData.winPoints}
                     onChange={(e) => setFormData({ ...formData, winPoints: parseInt(e.target.value) || 0 })} />
                   <Input type="number" label="Punts per empat" value={formData.drawPoints}
                     onChange={(e) => setFormData({ ...formData, drawPoints: parseInt(e.target.value) || 0 })} />
                   <Input type="number" label="Punts per derrota" value={formData.lossPoints}
                     onChange={(e) => setFormData({ ...formData, lossPoints: parseInt(e.target.value) || 0 })} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Criteri de desempat</label>
+                  <select value={formData.tiebreaker} onChange={(e) => setFormData({ ...formData, tiebreaker: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#D85A30]">
+                    <option value="goal_difference">Diferència de gols/punts</option>
+                    <option value="head_to_head">Enfrontament directe</option>
+                    <option value="goals_for">Més gols/punts a favor</option>
+                    <option value="goals_against">Menys gols/punts en contra</option>
+                  </select>
                 </div>
               </div>
             )}

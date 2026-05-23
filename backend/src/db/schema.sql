@@ -68,7 +68,7 @@ CREATE TABLE documents (
   id INT PRIMARY KEY AUTO_INCREMENT,
   user_id INT,
   team_id INT,
-  document_type ENUM('dni', 'asseguranca') NOT NULL,
+  document_type ENUM('dni', 'asseguranca', 'image_rights') NOT NULL,
   file_path VARCHAR(500) NOT NULL,
   status ENUM('pendent', 'aprovat', 'rebutjat') DEFAULT 'pendent',
   rejection_reason TEXT,

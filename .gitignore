@@ -84,3 +84,9 @@ pnpm-lock.yaml
 *.temp
 **/temp/
 **/tmp/
+
+# Accidental nested copy
+Campo_Base/
+
+# Scratch files
+**/gen.mjs

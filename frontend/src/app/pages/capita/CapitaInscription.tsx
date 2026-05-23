@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
+import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import { loadStripe } from '@stripe/stripe-js';
 import { Sidebar } from '../../components/Sidebar';
 import { Card } from '../../components/Card';
 import { Badge } from '../../components/Badge';
@@ -8,13 +10,77 @@ import { CheckCircle, AlertCircle, CreditCard } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { API_BASE_URL } from '../../services/api';
 
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '');
+
 interface InscriptionData {
   teamName: string;
   sport: string;
-  players: string[];
+  players: { id: number; name: string }[];
   amount: number;
   status: string;
   documentsReady: boolean;
+}
+
+function PaymentForm({ teamId, amount, onSuccess, onError }: { teamId: number; amount: number; onSuccess: () => void; onError: (msg: string) => void }) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [processing, setProcessing] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!stripe || !elements) return;
+
+    setProcessing(true);
+    try {
+      const { error, paymentIntent } = await stripe.confirmPayment({
+        elements,
+        redirect: 'if_required',
+      });
+
+      if (error) {
+        onError(error.message || 'Error en el pagament');
+        setProcessing(false);
+        return;
+      }
+
+      if (paymentIntent?.status === 'succeeded') {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${API_BASE_URL}/team/process-payment`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ teamId, amount, paymentIntentId: paymentIntent.id }),
+        });
+
+        if (res.ok) {
+          onSuccess();
+        } else {
+          const err = await res.json();
+          onError(err.error || 'Error en processar el pagament');
+        }
+      } else {
+        onError('El pagament no s\'ha completat');
+      }
+    } catch {
+      onError('Error en processar el pagament');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <PaymentElement />
+      <Button
+        type="submit"
+        variant="primary"
+        className="w-full flex items-center justify-center gap-2 mt-6"
+        disabled={!stripe || processing}
+      >
+        <CreditCard size={18} />
+        {processing ? 'Processant...' : `Pagar ${amount}€`}
+      </Button>
+    </form>
+  );
 }
 
 export default function CapitaInscription() {
@@ -25,7 +91,8 @@ export default function CapitaInscription() {
   const [error, setError] = useState<string | null>(null);
   const [teamData, setTeamData] = useState<InscriptionData | null>(null);
   const [teamId, setTeamId] = useState<number | null>(null);
-  const [processing, setProcessing] = useState(false);
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [stripeError, setStripeError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchInscriptionData = async () => {
@@ -44,13 +111,29 @@ export default function CapitaInscription() {
           if (teamRes.ok) {
             const teamData2 = await teamRes.json();
             if (Array.isArray(teamData2) && teamData2.length > 0) {
-              setTeamId(teamData2[0].id);
+              const tid = teamData2[0].id;
+              setTeamId(tid);
+
+              if (data.teamData?.documentsReady && data.teamData?.status === 'pendent_pagament') {
+                const piRes = await fetch(`${API_BASE_URL}/team/create-payment-intent`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                  body: JSON.stringify({ teamId: tid, amount: data.teamData.amount || 150 }),
+                });
+                if (piRes.ok) {
+                  const pi = await piRes.json();
+                  setClientSecret(pi.clientSecret);
+                } else {
+                  const err = await piRes.json();
+                  setStripeError(err.error || 'Error al crear el pagament');
+                }
+              }
             }
           }
         } else {
           setError('No hi ha equip creat. Crea un equip primer.');
         }
-      } catch (err) {
+      } catch {
         setError('Error carregant les dades de inscripció');
       } finally {
         setIsLoading(false);
@@ -58,30 +141,6 @@ export default function CapitaInscription() {
     };
     fetchInscriptionData();
   }, []);
-
-  const handleSimulatePayment = async () => {
-    if (!teamId) return;
-    setProcessing(true);
-    setError(null);
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE_URL}/team/simulate-payment`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ teamId, amount: teamData?.amount || 150 }),
-      });
-      if (response.ok) {
-        setPaymentComplete(true);
-      } else {
-        const err = await response.json();
-        setError(err.error || 'Error en processar el pagament');
-      }
-    } catch (err) {
-      setError('Error en processar el pagament');
-    } finally {
-      setProcessing(false);
-    }
-  };
 
   if (isLoading) {
     return (
@@ -171,6 +230,12 @@ export default function CapitaInscription() {
             </Card>
           )}
 
+          {stripeError && (
+            <Card className="mb-6 bg-[#FFE8E8] border border-[#FF6B6B]">
+              <p className="text-[#A32D2D]">{stripeError}</p>
+            </Card>
+          )}
+
           {!teamData.documentsReady && (
             <Card className="mb-6 bg-[#FFF4E6] border border-[#FFB84D]">
               <p className="text-[#D85A30]">Falta documentació. Tots els documents (DNI, assegurança i drets d'imatge) han d'estar aprovats per l'administrador.</p>
@@ -209,7 +274,7 @@ export default function CapitaInscription() {
                       teamData.players.map((player, i) => (
                         <div key={i} className="flex items-center gap-2">
                           <CheckCircle size={16} className="text-[#3B6D11]" />
-                          <p className="text-[13px] text-[#2C2C2A]">{player}</p>
+                          <p className="text-[13px] text-[#2C2C2A]">{player.name || player}</p>
                         </div>
                       ))
                     ) : (
@@ -243,16 +308,15 @@ export default function CapitaInscription() {
                 <p className="text-[32px] font-medium text-[#D85A30]">{teamData.amount}€</p>
               </div>
 
-              {teamId && canPay && (
-                <Button
-                  variant="primary"
-                  className="w-full flex items-center justify-center gap-2"
-                  onClick={handleSimulatePayment}
-                  disabled={processing}
-                >
-                  <CreditCard size={18} />
-                  {processing ? 'Processant...' : `Pagar ${teamData.amount}€`}
-                </Button>
+              {teamId && canPay && clientSecret && (
+                <Elements stripe={stripePromise} options={{ clientSecret }}>
+                  <PaymentForm
+                    teamId={teamId}
+                    amount={teamData.amount || 150}
+                    onSuccess={() => setPaymentComplete(true)}
+                    onError={(msg) => setError(msg)}
+                  />
+                </Elements>
               )}
 
               {!canPay && !isInscrit && (
@@ -260,8 +324,8 @@ export default function CapitaInscription() {
                   <p className="text-[13px] text-[#5F5E5A]">
                     {teamData.status === 'pendent_docs'
                       ? 'Esperant que l\'administrador validi els documents.'
-                      : teamData.status === 'pendent_validacio'
-                      ? 'Esperant validació de l\'administrador.'
+                      : teamData.status === 'pendent_pagament'
+                      ? 'Error al carregar el formulari de pagament. Comprova que Stripe estigui configurat.'
                       : 'Els documents han d\'estar aprovats per poder pagar.'}
                   </p>
                 </Card>

@@ -66,6 +66,54 @@ async function runMigrations() {
       console.warn('Migration note (non-fatal) 2:', err.message);
     }
   }
+  try {
+    await pool.execute("ALTER TABLE documents MODIFY COLUMN document_type ENUM('dni', 'asseguranca', 'image_rights') NOT NULL");
+    console.log('✓ Migration: documents.document_type includes image_rights');
+  } catch (err: any) {
+    if (!err.message?.includes('Duplicate')) {
+      console.warn('Migration note (non-fatal) 3:', err.message);
+    }
+  }
+  try {
+    await pool.execute("ALTER TABLE tournaments ADD COLUMN sport VARCHAR(20) NULL AFTER name");
+    console.log('✓ Migration: tournaments.sport added');
+  } catch (err: any) {
+    if (err.code !== 'ER_DUP_FIELDNAME' && !err.message?.includes('Duplicate column')) {
+      console.warn('Migration note (non-fatal) 4:', err.message);
+    }
+  }
+  try {
+    await pool.execute("ALTER TABLE tournaments ADD COLUMN status VARCHAR(20) DEFAULT 'actiu' AFTER format");
+    console.log('✓ Migration: tournaments.status added');
+  } catch (err: any) {
+    if (err.code !== 'ER_DUP_FIELDNAME' && !err.message?.includes('Duplicate column')) {
+      console.warn('Migration note (non-fatal) 5:', err.message);
+    }
+  }
+  try {
+    await pool.execute("ALTER TABLE tournaments ADD COLUMN start_date DATE NULL AFTER tiebreaker");
+    console.log('✓ Migration: tournaments.start_date added');
+  } catch (err: any) {
+    if (err.code !== 'ER_DUP_FIELDNAME' && !err.message?.includes('Duplicate column')) {
+      console.warn('Migration note (non-fatal) 6:', err.message);
+    }
+  }
+  try {
+    await pool.execute("ALTER TABLE tournaments ADD COLUMN end_date DATE NULL AFTER start_date");
+    console.log('✓ Migration: tournaments.end_date added');
+  } catch (err: any) {
+    if (err.code !== 'ER_DUP_FIELDNAME' && !err.message?.includes('Duplicate column')) {
+      console.warn('Migration note (non-fatal) 7:', err.message);
+    }
+  }
+  try {
+    await pool.execute("ALTER TABLE tournaments ADD COLUMN match_duration_minutes INT NULL AFTER end_date");
+    console.log('✓ Migration: tournaments.match_duration_minutes added');
+  } catch (err: any) {
+    if (err.code !== 'ER_DUP_FIELDNAME' && !err.message?.includes('Duplicate column')) {
+      console.warn('Migration note (non-fatal) 8:', err.message);
+    }
+  }
 }
 
 export async function getConnection(): Promise<mysql.PoolConnection> {
