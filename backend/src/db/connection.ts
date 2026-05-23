@@ -114,6 +114,12 @@ async function runMigrations() {
       console.warn('Migration note (non-fatal) 8:', err.message);
     }
   }
+  try {
+    await pool.execute("ALTER TABLE tournaments MODIFY COLUMN match_duration INT NULL");
+    console.log('✓ Migration: tournaments.match_duration set nullable');
+  } catch (err: any) {
+    console.warn('Migration note (non-fatal) 9:', err.message);
+  }
 }
 
 export async function getConnection(): Promise<mysql.PoolConnection> {
