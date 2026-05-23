@@ -401,10 +401,16 @@ router.post('/generate-calendar', verifyToken, requireRole(['admin']), async (re
       courtsData.push({ id: result.insertId, name: courtName });
     }
 
+    // Map Catalan format values to calendar service format names
+    const formatMap: Record<string, string> = {
+      lliga: 'round_robin', grups: 'groups', eliminatoria: 'elimination', mixt: 'mixed'
+    };
+    const calendarFormat = formatMap[format] || format;
+
     // Generate calendar using calendar service
     const config = {
       tournamentId,
-      format: format as 'round_robin' | 'groups' | 'elimination' | 'mixed',
+      format: calendarFormat as 'round_robin' | 'groups' | 'elimination' | 'mixed',
       teams,
       courts: courtsData,
       startDate: new Date(startDate),
