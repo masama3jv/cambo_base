@@ -18,10 +18,6 @@ export default function AdminConfigurator() {
     { number: 4, label: 'Temps' },
   ];
 
-  const formatMap: Record<string, string> = {
-    lliga: 'round_robin', grups: 'groups', eliminatria: 'elimination', mixt: 'mixed'
-  };
-
   const [formData, setFormData] = useState({
     tournamentName: '',
     sport: 'futsal',
@@ -55,7 +51,7 @@ export default function AdminConfigurator() {
         body: JSON.stringify({
           tournamentName: formData.tournamentName || `Torneig-${Date.now()}`,
           sport: formData.sport,
-          format: formatMap[formData.format] || formData.format,
+          format: formData.format,
           startDate: formData.startDate,
           endDate: formData.endDate,
           matchDurationMinutes: formData.matchDuration,
@@ -85,7 +81,7 @@ export default function AdminConfigurator() {
   };
 
   const formatLabels: Record<string, string> = {
-    lliga: 'Lliga', grups: 'Grups', eliminatria: 'Eliminatòria', mixt: 'Mixt'
+    lliga: 'Lliga', grups: 'Grups', eliminatoria: 'Eliminatòria', mixt: 'Mixt'
   };
 
   if (success && currentStep === 5) {
@@ -185,7 +181,7 @@ export default function AdminConfigurator() {
                   <div>
                     <label className="block mb-3">Format del torneig</label>
                     <div className="flex gap-3">
-                      {['lliga', 'grups', 'eliminatria', 'mixt'].map((fmt) => (
+                      {['lliga', 'grups', 'eliminatoria', 'mixt'].map((fmt) => (
                         <button key={fmt} onClick={() => setFormData({ ...formData, format: fmt })}
                           className={`px-4 py-2 rounded-lg border transition-colors ${formData.format === fmt ? 'border-[#D85A30] bg-[#FAECE7] text-[#D85A30]' : 'border-[#D3D1C7] text-[#5F5E5A] hover:bg-[#F1EFE8]'}`}>
                           {fmt.charAt(0).toUpperCase() + fmt.slice(1)}
