@@ -384,9 +384,9 @@ router.post('/generate-calendar', verifyToken, requireRole(['admin']), async (re
     // Create tournament first (courts need a tournament_id)
     const tournamentNameStr = tournamentName || `Torneig-${Date.now()}`;
     const tournamentResult = await query(
-      `INSERT INTO tournaments (name, sport, format, status, start_date, end_date, match_duration_minutes, points_win, points_draw, points_loss, tiebreaker) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [tournamentNameStr, sport || 'futsal', format, 'actiu', startDate, endDate, matchDurationMinutes, winPoints || 3, drawPoints || 1, lossPoints || 0, tiebreaker || 'goal_difference']
+      `INSERT INTO tournaments (name, sport, format, status, start_date, end_date, match_duration, match_duration_minutes, points_win, points_draw, points_loss, tiebreaker) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [tournamentNameStr, sport || 'futsal', format, 'actiu', startDate, endDate, matchDurationMinutes, matchDurationMinutes, winPoints || 3, drawPoints || 1, lossPoints || 0, tiebreaker || 'goal_difference']
     ) as any;
 
     const tournamentId = tournamentResult.insertId;
