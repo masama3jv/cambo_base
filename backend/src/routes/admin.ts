@@ -47,6 +47,49 @@ router.get('/dashboard', verifyToken, requireRole(['admin']), async (req: AuthRe
   }
 });
 
+// GET /api/admin/tournaments - List all tournaments with match info
+router.get('/tournaments', verifyToken, requireRole(['admin']), async (req: AuthRequest, res) => {
+  try {
+    const tournaments = await query(`
+      SELECT 
+        t.*,
+        (SELECT COUNT(*) FROM matches WHERE tournament_id = t.id) as total_matches,
+        (SELECT COUNT(*) FROM matches WHERE tournament_id = t.id AND status = 'finalitzat') as completed_matches,
+        (SELECT COUNT(*) FROM courts WHERE tournament_id = t.id) as court_count
+      FROM tournaments t
+      ORDER BY t.created_at DESC
+    `);
+    res.json(tournaments);
+  } catch (error) {
+    console.error('Error fetching tournaments:', error);
+    res.status(500).json({ error: 'Failed to fetch tournaments' });
+  }
+});
+
+// GET /api/admin/tournaments/:id/matches - Get matches for a tournament
+router.get('/tournaments/:id/matches', verifyToken, requireRole(['admin']), async (req: AuthRequest, res) => {
+  try {
+    const matches = await query(`
+      SELECT 
+        m.*,
+        t1.name as home_team_name,
+        t2.name as away_team_name,
+        c.name as court_name
+      FROM matches m
+      LEFT JOIN teams t1 ON m.home_team_id = t1.id
+      LEFT JOIN teams t2 ON m.away_team_id = t2.id
+      LEFT JOIN courts c ON m.court_id = c.id
+      WHERE m.tournament_id = ?
+      ORDER BY m.match_date ASC
+    `, [req.params.id]);
+
+    res.json(matches);
+  } catch (error) {
+    console.error('Error fetching tournament matches:', error);
+    res.status(500).json({ error: 'Failed to fetch tournament matches' });
+  }
+});
+
 // GET /api/admin/inscriptions - Get all pending inscriptions
 router.get('/inscriptions', verifyToken, requireRole(['admin']), async (req: AuthRequest, res) => {
   try {
