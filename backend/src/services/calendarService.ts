@@ -127,29 +127,27 @@ function scheduleMatches(matches: ScheduleMatch[], config: CalendarConfig): Sche
   const courtSchedules = new Map<number, Date[]>();
   const teamSchedules = new Map<number, Date[]>();
   
-  // Initialize court and team schedules
   config.courts.forEach(court => courtSchedules.set(court.id, []));
   config.teams.forEach(team => teamSchedules.set(team.id, []));
 
   let currentDate = new Date(config.startDate);
+  currentDate.setHours(9, 0, 0, 0);
   let matchIndex = 0;
 
   while (matchIndex < matches.length && currentDate <= config.endDate) {
-    const matchesThisDay = [];
+    const dayStart = new Date(currentDate);
     let matchesScheduledToday = 0;
 
-    // Try to schedule matches for this day
     for (let i = matchIndex; i < matches.length && matchesScheduledToday < config.matchesPerDay; i++) {
       const match = matches[i];
       const matchEnd = new Date(currentDate);
       matchEnd.setMinutes(matchEnd.getMinutes() + config.matchDurationMinutes);
 
-      // Check if teams and court are available
       const homeTeamBusy = (teamSchedules.get(match.home_team_id) || []).some(
-        d => d.getTime() === currentDate.getTime()
+        d => d.toDateString() === currentDate.toDateString()
       );
       const awayTeamBusy = (teamSchedules.get(match.away_team_id) || []).some(
-        d => d.getTime() === currentDate.getTime()
+        d => d.toDateString() === currentDate.toDateString()
       );
       const courtBusy = (courtSchedules.get(match.court_id) || []).some(
         d => d.getTime() >= currentDate.getTime() && d.getTime() < matchEnd.getTime()
@@ -158,9 +156,7 @@ function scheduleMatches(matches: ScheduleMatch[], config: CalendarConfig): Sche
       if (!homeTeamBusy && !awayTeamBusy && !courtBusy) {
         match.match_date = new Date(currentDate);
         scheduled.push(match);
-        matchesThisDay.push(i);
 
-        // Mark as scheduled
         teamSchedules.get(match.home_team_id)?.push(new Date(currentDate));
         teamSchedules.get(match.away_team_id)?.push(new Date(currentDate));
         
@@ -168,16 +164,19 @@ function scheduleMatches(matches: ScheduleMatch[], config: CalendarConfig): Sche
         courtDates.push(new Date(currentDate));
         courtSchedules.set(match.court_id, courtDates);
 
-        // Move to next time slot
         currentDate.setMinutes(currentDate.getMinutes() + config.matchDurationMinutes + config.breakMinutes);
         matchesScheduledToday++;
+        matchIndex++;
+      } else {
+        // Try next time slot within the same day
+        currentDate.setMinutes(currentDate.getMinutes() + config.matchDurationMinutes + config.breakMinutes);
       }
     }
 
-    // Move to next day if no matches scheduled today
-    if (matchesScheduledToday === 0) {
+    // If no matches were scheduled today, or we exhausted the day, move to next day
+    if (currentDate.toDateString() === dayStart.toDateString()) {
       currentDate.setDate(currentDate.getDate() + 1);
-      currentDate.setHours(9, 0, 0, 0); // Reset to 9 AM
+      currentDate.setHours(9, 0, 0, 0);
     }
   }
 

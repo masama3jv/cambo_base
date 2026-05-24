@@ -37,26 +37,25 @@ function PaymentForm({ teamId, amount, onSuccess, onError }: { teamId: number; a
         redirect: 'if_required',
       });
 
-      if (error) {
-        onError(error.message || 'Error en el pagament');
-        setProcessing(false);
-        return;
-      }
-
-      if (paymentIntent?.status === 'succeeded') {
+      // Try to process the payment on our backend regardless of confirmPayment result.
+      // The backend verifies the actual PaymentIntent status via Stripe API.
+      const piId = paymentIntent?.id || (error as any)?.payment_intent?.id;
+      if (piId) {
         const token = localStorage.getItem('token');
         const res = await fetch(`${API_BASE_URL}/team/process-payment`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-          body: JSON.stringify({ teamId, amount, paymentIntentId: paymentIntent.id }),
+          body: JSON.stringify({ teamId, amount, paymentIntentId: piId }),
         });
-
         if (res.ok) {
           onSuccess();
-        } else {
-          const err = await res.json();
-          onError(err.error || 'Error en processar el pagament');
+          setProcessing(false);
+          return;
         }
+      }
+
+      if (error) {
+        onError(error.message || 'Error en el pagament');
       } else {
         onError('El pagament no s\'ha completat');
       }
@@ -99,6 +98,31 @@ export default function CapitaInscription() {
       try {
         setIsLoading(true);
         const token = localStorage.getItem('token');
+
+        // Handle Stripe redirect return (3D Secure)
+        const urlParams = new URLSearchParams(window.location.search);
+        const redirectPiId = urlParams.get('payment_intent');
+        const redirectStatus = urlParams.get('redirect_status');
+        if (redirectPiId && redirectStatus === 'succeeded') {
+          const teamRes = await fetch(`${API_BASE_URL}/teams`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (teamRes.ok) {
+            const teamDataArr = await teamRes.json();
+            if (Array.isArray(teamDataArr) && teamDataArr.length > 0) {
+              const tid = teamDataArr[0].id;
+              await fetch(`${API_BASE_URL}/team/process-payment`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ teamId: tid, amount: 150, paymentIntentId: redirectPiId }),
+              });
+              setPaymentComplete(true);
+              setIsLoading(false);
+              return;
+            }
+          }
+        }
+
         const response = await fetch(`${API_BASE_URL}/team/inscription-data`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
