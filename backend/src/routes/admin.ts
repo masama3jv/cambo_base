@@ -569,4 +569,27 @@ router.post('/generate-calendar', verifyToken, requireRole(['admin']), async (re
   }
 });
 
+// POST /api/admin/reset-db - Reset database for testing (keeps only the calling admin)
+router.post('/reset-db', verifyToken, requireRole(['admin']), async (req: AuthRequest, res) => {
+  try {
+    await query('DELETE FROM match_sheets');
+    await query('DELETE FROM matches');
+    await query('DELETE FROM documents');
+    await query('DELETE FROM notifications');
+    await query('DELETE FROM invitations');
+    await query('DELETE FROM team_players');
+    await query('DELETE FROM teams');
+    await query('DELETE FROM inscriptions');
+    await query('DELETE FROM tournaments');
+    await query('DELETE FROM courts WHERE tournament_id IS NOT NULL');
+    await query('DELETE FROM venues');
+    // Delete all users except the admin who called this
+    await query('DELETE FROM users WHERE id != ?', [req.userId]);
+    res.json({ message: 'Base de dades reiniciada. Només es manté el teu usuari admin.' });
+  } catch (error) {
+    console.error('Error resetting database:', error);
+    res.status(500).json({ error: 'Error reiniciant la base de dades' });
+  }
+});
+
 export default router;
