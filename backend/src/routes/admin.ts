@@ -1,6 +1,7 @@
 import express, { Router } from 'express';
 import path from 'path';
 import fs from 'fs';
+import jwt from 'jsonwebtoken';
 import { query } from '../db/connection.js';
 import { verifyToken, AuthRequest, requireRole } from '../middleware/auth.js';
 import { generateCalendar, saveMatchesToDatabase } from '../services/calendarService.js';
@@ -184,7 +185,6 @@ router.get('/download-document/:documentId', async (req: AuthRequest, res) => {
   const queryToken = req.query.token as string;
   if (queryToken) {
     try {
-      const jwt = await import('jsonwebtoken');
       const decoded = jwt.verify(queryToken, process.env.JWT_SECRET || 'secret') as any;
       req.userId = decoded.id;
       req.userRole = decoded.role;
@@ -201,7 +201,6 @@ router.get('/download-document/:documentId', async (req: AuthRequest, res) => {
       return res.status(401).json({ error: 'No token provided' });
     }
     try {
-      const jwt = await import('jsonwebtoken');
       const decoded = jwt.verify(headerToken, process.env.JWT_SECRET || 'secret') as any;
       req.userId = decoded.id;
       req.userRole = decoded.role;
