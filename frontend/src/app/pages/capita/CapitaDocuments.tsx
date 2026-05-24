@@ -62,7 +62,17 @@ export default function CapitaDocuments() {
       } else {
         // Ensure each player has 3 document slots (dni, asseguranca, image_rights)
         const docs: Document[] = data.documents || [];
-        const players: { id: number; name: string }[] = data.players || [];
+        // Use players from API response, or fetch them as fallback
+        let players: { id: number; name: string }[] = data.players || [];
+        if (players.length === 0 && teamId) {
+          try {
+            const token = localStorage.getItem('token');
+            const pRes = await fetch(`${API_BASE_URL}/team/players?teamId=${teamId}`, {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+            if (pRes.ok) players = await pRes.json();
+          } catch { /* ignore */ }
+        }
         const allTypes = ['dni', 'asseguranca', 'image_rights'];
         // Build map of user_id -> set of document types they have
         const uploadedByUser: Record<number, Set<string>> = {};

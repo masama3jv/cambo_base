@@ -264,6 +264,26 @@ router.get('/documents', verifyToken, async (req: AuthRequest, res) => {
   }
 });
 
+// GET /api/team/players - Get team players list
+router.get('/players', verifyToken, async (req: AuthRequest, res) => {
+  try {
+    const teams = await query('SELECT * FROM teams WHERE capita_id = ?', [req.userId]) as any[];
+    if (teams.length === 0) {
+      return res.status(404).json({ error: 'No team found' });
+    }
+    const teamId = teams[0].id;
+    const players = await query(`
+      SELECT u.id, u.name FROM team_players tp
+      JOIN users u ON tp.user_id = u.id
+      WHERE tp.team_id = ?
+    `, [teamId]);
+    res.json(players);
+  } catch (error) {
+    console.error('Error fetching players:', error);
+    res.status(500).json({ error: 'Failed to fetch players' });
+  }
+});
+
 // POST /api/team/upload-document - Upload player document (multipart/form-data)
 router.post('/upload-document', verifyToken, upload.single('file'), async (req: AuthRequest, res) => {
   try {
