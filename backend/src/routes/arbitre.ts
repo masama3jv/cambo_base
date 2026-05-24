@@ -42,7 +42,7 @@ router.get('/matches', verifyToken, requireRole(['arbitre']), async (req: AuthRe
     const tournamentId = req.query.tournamentId as string;
     let sql = `
       SELECT 
-        m.*, m.sport,
+        m.*,
         t1.name as home_team_name,
         t2.name as away_team_name,
         c.name as court_name,
