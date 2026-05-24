@@ -185,8 +185,8 @@ router.get('/download-document/:documentId', async (req: AuthRequest, res) => {
   if (queryToken) {
     try {
       const jwt = await import('jsonwebtoken');
-      const decoded = jwt.verify(queryToken, process.env.JWT_SECRET || 'default-secret') as any;
-      req.userId = decoded.userId;
+      const decoded = jwt.verify(queryToken, process.env.JWT_SECRET || 'secret') as any;
+      req.userId = decoded.id;
       req.userRole = decoded.role;
     } catch {
       return res.status(401).json({ error: 'Invalid token' });
@@ -201,8 +201,8 @@ router.get('/download-document/:documentId', async (req: AuthRequest, res) => {
     }
     try {
       const jwt = await import('jsonwebtoken');
-      const decoded = jwt.verify(headerToken, process.env.JWT_SECRET || 'default-secret') as any;
-      req.userId = decoded.userId;
+      const decoded = jwt.verify(headerToken, process.env.JWT_SECRET || 'secret') as any;
+      req.userId = decoded.id;
       req.userRole = decoded.role;
     } catch {
       return res.status(401).json({ error: 'Invalid token' });
