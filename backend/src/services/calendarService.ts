@@ -27,6 +27,8 @@ interface CalendarConfig {
   endDate: Date;
   matchDurationMinutes: number;
   breakMinutes: number;
+  startTime: string; // 'HH:MM'
+  endTime: string;   // 'HH:MM'
   datesAvailable: string[]; // Format: 'HH:MM-HH:MM'
   matchesPerDay: number;
 }
@@ -121,6 +123,28 @@ function generateMixed(config: CalendarConfig): ScheduleMatch[] {
   return groupMatches;
 }
 
+function parseTime(timeStr: string): { hours: number; minutes: number } {
+  const [h, m] = timeStr.split(':').map(Number);
+  return { hours: h || 9, minutes: m || 0 };
+}
+
+function setTime(date: Date, timeStr: string): void {
+  const t = parseTime(timeStr);
+  date.setHours(t.hours, t.minutes, 0, 0);
+}
+
+function isPastEndTime(date: Date, endTime: string): boolean {
+  const end = parseTime(endTime);
+  const totalMinutes = date.getHours() * 60 + date.getMinutes();
+  const endMinutes = end.hours * 60 + end.minutes;
+  return totalMinutes >= endMinutes;
+}
+
+function nextDayAtStartTime(date: Date, startTime: string): void {
+  date.setDate(date.getDate() + 1);
+  setTime(date, startTime);
+}
+
 // Assign dates and courts to matches
 function scheduleMatches(matches: ScheduleMatch[], config: CalendarConfig): ScheduleMatch[] {
   const scheduled: ScheduleMatch[] = [];
@@ -131,23 +155,33 @@ function scheduleMatches(matches: ScheduleMatch[], config: CalendarConfig): Sche
   config.teams.forEach(team => teamSchedules.set(team.id, []));
 
   let currentDate = new Date(config.startDate);
-  currentDate.setHours(9, 0, 0, 0);
+  setTime(currentDate, config.startTime);
   let matchIndex = 0;
 
   while (matchIndex < matches.length && currentDate <= config.endDate) {
-    const dayStart = new Date(currentDate);
+    const dayStart = currentDate.toDateString();
     let matchesScheduledToday = 0;
 
     for (let i = matchIndex; i < matches.length && matchesScheduledToday < config.matchesPerDay; i++) {
+      if (isPastEndTime(currentDate, config.endTime)) {
+        nextDayAtStartTime(currentDate, config.startTime);
+        break;
+      }
+
       const match = matches[i];
       const matchEnd = new Date(currentDate);
       matchEnd.setMinutes(matchEnd.getMinutes() + config.matchDurationMinutes);
 
+      if (isPastEndTime(matchEnd, config.endTime)) {
+        nextDayAtStartTime(currentDate, config.startTime);
+        break;
+      }
+
       const homeTeamBusy = (teamSchedules.get(match.home_team_id) || []).some(
-        d => d.toDateString() === currentDate.toDateString()
+        d => d.toDateString() === dayStart
       );
       const awayTeamBusy = (teamSchedules.get(match.away_team_id) || []).some(
-        d => d.toDateString() === currentDate.toDateString()
+        d => d.toDateString() === dayStart
       );
       const courtBusy = (courtSchedules.get(match.court_id) || []).some(
         d => d.getTime() >= currentDate.getTime() && d.getTime() < matchEnd.getTime()
@@ -173,10 +207,9 @@ function scheduleMatches(matches: ScheduleMatch[], config: CalendarConfig): Sche
       }
     }
 
-    // If no matches were scheduled today, or we exhausted the day, move to next day
-    if (currentDate.toDateString() === dayStart.toDateString()) {
-      currentDate.setDate(currentDate.getDate() + 1);
-      currentDate.setHours(9, 0, 0, 0);
+    // If still on the same day after inner loop, move to next day
+    if (currentDate.toDateString() === dayStart) {
+      nextDayAtStartTime(currentDate, config.startTime);
     }
   }
 
