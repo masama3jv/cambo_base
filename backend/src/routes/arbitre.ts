@@ -82,10 +82,10 @@ router.get('/match/:matchId', verifyToken, requireRole(['arbitre']), async (req:
       SELECT 
         m.*,
         t1.name as home_team_name,
-        t1.sport,
         t2.name as away_team_name,
         c.name as court_name,
-        tr.match_duration_minutes as match_duration_minutes
+        tr.match_duration_minutes,
+        COALESCE(tr.sport, t1.sport, 'futsal') as sport
       FROM matches m
       LEFT JOIN teams t1 ON m.home_team_id = t1.id
       LEFT JOIN teams t2 ON m.away_team_id = t2.id
@@ -137,9 +137,11 @@ router.post('/match/:matchId/sheet', verifyToken, requireRole(['arbitre']), asyn
     const { matchId } = req.params;
     const { action, data } = req.body;
 
-    // Get match info
+    // Get match info (join tournaments for sport)
     const matches = await query(
-      'SELECT * FROM matches WHERE id = ?',
+      `SELECT m.*, tr.sport FROM matches m
+       LEFT JOIN tournaments tr ON m.tournament_id = tr.id
+       WHERE m.id = ?`,
       [matchId]
     ) as any[];
 
@@ -276,7 +278,9 @@ router.get('/match/:matchId/sheet', verifyToken, requireRole(['arbitre']), async
     if (sheets.length === 0) {
       // Return empty sheet structure
       const matches = await query(
-        'SELECT * FROM matches WHERE id = ?',
+        `SELECT m.*, tr.sport FROM matches m
+         LEFT JOIN tournaments tr ON m.tournament_id = tr.id
+         WHERE m.id = ?`,
         [matchId]
       ) as any[];
 
