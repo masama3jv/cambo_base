@@ -475,6 +475,7 @@ router.post('/generate-calendar', verifyToken, requireRole(['admin']), async (re
       breakMinutes,
       startTime,
       endTime,
+      matchesPerTeamPerDay,
       courts: courtNames,
       matchesPerDay,
       winPoints,
@@ -539,6 +540,7 @@ router.post('/generate-calendar', verifyToken, requireRole(['admin']), async (re
       breakMinutes: breakMinutes || 5,
       startTime: startTime || '09:00',
       endTime: endTime || '21:00',
+      matchesPerTeamPerDay: matchesPerTeamPerDay || 1,
       datesAvailable: [],
       matchesPerDay: matchesPerDay || 4
     };

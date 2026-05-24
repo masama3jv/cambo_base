@@ -30,7 +30,7 @@ export default function AdminConfigurator() {
     winPoints: 3, drawPoints: 1, lossPoints: 0,
     tiebreaker: 'goal_difference' as string,
     matchDuration: 40, breakBetween: 5,
-    startDate: '', endDate: '', startTime: '09:00', endTime: '21:00', matchesPerDay: 4,
+    startDate: '', endDate: '', startTime: '09:00', endTime: '21:00', matchesPerDay: 4, matchesPerTeamPerDay: 1,
   });
 
   const handleGenerate = async () => {
@@ -60,6 +60,7 @@ export default function AdminConfigurator() {
           breakMinutes: formData.breakBetween,
           startTime: formData.startTime,
           endTime: formData.endTime,
+          matchesPerTeamPerDay: formData.matchesPerTeamPerDay,
           courts: formData.courts.map(c => c.name),
           matchesPerDay: formData.matchesPerDay,
           winPoints: formData.winPoints,
@@ -308,8 +309,12 @@ export default function AdminConfigurator() {
                   <Input type="time" label="Hora de fi" value={formData.endTime}
                     onChange={(e) => setFormData({ ...formData, endTime: e.target.value })} />
                 </div>
-                <Input type="number" label="Màxim de partits per dia" value={formData.matchesPerDay}
-                  onChange={(e) => setFormData({ ...formData, matchesPerDay: parseInt(e.target.value) || 0 })} />
+                <div className="grid grid-cols-2 gap-6 mb-6">
+                  <Input type="number" label="Màxim partits/dia (torneig)" value={formData.matchesPerDay}
+                    onChange={(e) => setFormData({ ...formData, matchesPerDay: parseInt(e.target.value) || 0 })} />
+                  <Input type="number" label="Màxim partits/dia (per equip)" value={formData.matchesPerTeamPerDay}
+                    onChange={(e) => setFormData({ ...formData, matchesPerTeamPerDay: parseInt(e.target.value) || 0 })} />
+                </div>
               </div>
             )}
 

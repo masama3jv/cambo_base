@@ -29,6 +29,7 @@ interface CalendarConfig {
   breakMinutes: number;
   startTime: string; // 'HH:MM'
   endTime: string;   // 'HH:MM'
+  matchesPerTeamPerDay: number;
   datesAvailable: string[]; // Format: 'HH:MM-HH:MM'
   matchesPerDay: number;
 }
@@ -177,12 +178,12 @@ function scheduleMatches(matches: ScheduleMatch[], config: CalendarConfig): Sche
         break;
       }
 
-      const homeTeamBusy = (teamSchedules.get(match.home_team_id) || []).some(
+      const homeTeamBusy = (teamSchedules.get(match.home_team_id) || []).filter(
         d => d.toDateString() === dayStart
-      );
-      const awayTeamBusy = (teamSchedules.get(match.away_team_id) || []).some(
+      ).length >= config.matchesPerTeamPerDay;
+      const awayTeamBusy = (teamSchedules.get(match.away_team_id) || []).filter(
         d => d.toDateString() === dayStart
-      );
+      ).length >= config.matchesPerTeamPerDay;
       const courtBusy = (courtSchedules.get(match.court_id) || []).some(
         d => d.getTime() >= currentDate.getTime() && d.getTime() < matchEnd.getTime()
       );
