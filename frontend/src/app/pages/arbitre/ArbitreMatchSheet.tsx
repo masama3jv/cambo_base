@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
-import { AlertCircle, CheckCircle, Undo2, Download, X, RefreshCw, Plus, Minus } from 'lucide-react';
+import { AlertCircle, CheckCircle, Undo2, Download, X, RefreshCw, Plus, Minus, ArrowLeft } from 'lucide-react';
 import { API_BASE_URL } from '../../services/api';
 
 interface Incident {
@@ -435,6 +435,9 @@ export default function ArbitreMatchSheet() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#FAECE7] to-white p-2 sm:p-4">
       <div className="max-w-4xl mx-auto pb-24">
+        <button onClick={() => navigate('/arbitre/partits')} className="flex items-center gap-2 text-[#5F5E5A] hover:text-[#D85A30] mb-2 transition-colors text-sm">
+          <ArrowLeft size={18} /> Tots els partits
+        </button>
         {/* Header */}
         <div className="bg-white rounded-lg shadow-sm p-4 mb-4">
           <h1 className="text-xl sm:text-2xl font-bold text-[#D85A30] text-center">Acta de Partit</h1>
