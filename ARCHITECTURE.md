@@ -1,6 +1,6 @@
-# 📋 CampoBase - Arquitectura del Proyecto
+# CampoBase - Arquitectura del Projecte
 
-**Estado:** ✅ Backend implementado completo | 🎯 Frontend conectado | 🔐 Autenticación funcional | 📊 BD activa
+**Estat:** ✅ Complet | 🌐 Railway + Vercel | 🔐 JWT auth | 💳 Stripe | 📄 Actes digitals
 
 ---
 
@@ -8,716 +8,411 @@
 
 ```
 CampoBase/
-├── frontend/                      # Frontend (React + TypeScript + Vite)
+├── frontend/                        # React + TypeScript + Vite
 │   ├── src/
 │   │   ├── app/
-│   │   │   ├── components/        # Componentes reutilizables (UI + Custom)
-│   │   │   ├── context/           # AuthContext
-│   │   │   ├── pages/             # Páginas por rol
-│   │   │   │   ├── admin/         # AdminDashboard, AdminConfigurator, AdminInscriptions
-│   │   │   │   ├── capita/        # CapitaDashboard, CapitaInscription, CapitaTeam, etc
-│   │   │   │   ├── arbitre/       # ArbitreMatches
-│   │   │   │   ├── jugador/       # JugadorDashboard
+│   │   │   ├── components/          # Sidebar, Card, Button, Input, DocumentUploadZone
+│   │   │   ├── context/             # AuthContext (login, register, logout, refreshUser)
+│   │   │   ├── pages/
+│   │   │   │   ├── admin/           # Dashboard, Configurator, Inscriptions, Calendar
+│   │   │   │   ├── capita/          # Dashboard, Inscription, Documents, Team, Calendar, Statistics
+│   │   │   │   ├── arbitre/         # Tournaments, Matches, MatchSheet
+│   │   │   │   ├── jugador/         # Dashboard, Team
 │   │   │   │   └── Landing, Login, Register, NotFound
-│   │   │   ├── services/          # authService
+│   │   │   ├── services/            # api.ts (API_BASE_URL), authService.ts
 │   │   │   ├── App.tsx
-│   │   │   └── routes.tsx
+│   │   │   └── routes.tsx           # ProtectedRoute per rol
 │   │   └── styles/
-│   ├── package.json
+│   ├── vercel.json                  # SPA rewrite rule
 │   └── vite.config.ts
 │
-├── backend/                       # Backend (Express + Node.js + TypeScript)
+├── backend/                         # Express + Node.js + TypeScript + MySQL
 │   ├── src/
-│   │   ├── server.ts              # Express (todas las rutas registradas)
+│   │   ├── server.ts                # Entry point, CORS, routes
 │   │   ├── middleware/
-│   │   │   └── auth.ts            # verifyToken, requireRole
+│   │   │   └── auth.ts              # verifyToken, requireRole
 │   │   ├── routes/
-│   │   │   ├── auth.ts            # /api/auth (register, login)
-│   │   │   ├── teams.ts           # /api/teams (CRUD equipos)
-│   │   │   ├── inscriptions.ts    # /api/team (inscripción, documentos)
-│   │   │   ├── capita.ts          # /api/dashboard, /api/team/*
-│   │   │   ├── admin.ts           # /api/admin (validación, calendario)
-│   │   │   ├── arbitre.ts         # /api/arbitre (actas)
-│   │   │   └── public.ts          # /api/public (sin auth)
+│   │   │   ├── auth.ts              # /api/auth (register, login, register-invited)
+│   │   │   ├── teams.ts             # /api/teams (CRUD, join-by-code, check-code)
+│   │   │   ├── inscriptions.ts      # /api/team (documents, payment, players)
+│   │   │   ├── capita.ts            # /api/dashboard, /api/team/* (calendar, stats)
+│   │   │   ├── admin.ts             # /api/admin (inscriptions, calendar, referees, reset)
+│   │   │   ├── arbitre.ts           # /api/arbitre (tournaments, matches, match sheet)
+│   │   │   ├── jugador.ts           # /api/jugador (dashboard, team, matches)
+│   │   │   └── public.ts            # /api/public (matches)
+│   │   ├── services/
+│   │   │   ├── calendarService.ts   # Schedule generation (round-robin, groups, elimination)
+│   │   │   ├── matchSheetService.ts  # Goal/card/basket/padel recording, PDF generation
+│   │   │   └── emailService.ts      # Resend HTTP API (fire-and-forget, fallback)
 │   │   └── db/
-│   │       ├── connection.ts       # Pool MySQL
-│   │       └── schema.sql          # 10 tablas
+│   │       └── connection.ts        # Pool MySQL + migrations
+│   │
+│   ├── .env
 │   └── package.json
 │
-├── ARCHITECTURE.md                # Este archivo
-├── ESPECIFICACIO_FUNCIONAL.md    # Especificación del sistema (catalán)
-├── package.json                   # Workspace root (pnpm)
-└── pnpm-workspace.yaml            # Monorepo config
+├── ARCHITECTURE.md
+├── ESPECIFICACIO_FUNCIONAL.md
+└── README.md
 ```
 
 ---
 
-## 🔧 Frontend (React + TypeScript + Vite)
+## 🔧 Frontend
 
-### Dependencias:
-- react@18.x, react-router@6.x
-- typescript@5.x
-- tailwindcss@3.x, vite@4.x
-- shadcn/ui (componentes accesibles)
-- lucide-react (iconos)
+### Dependències principals
+- react@18, react-router@6, typescript@5
+- tailwindcss@3, vite@6
+- @stripe/react-stripe-js, @stripe/stripe-js
+- lucide-react (icones)
 
-### Páginas (por rol):
+### Pàgines per rol
 
-| Ruta | Componente | Rol | Función |
-|------|-----------|-----|---------|
-| `/` | LandingPage | Public | Información general |
-| `/login` | LoginPage | Public | Login con JWT |
-| `/register` | RegisterPage | Public | Registrar Capità |
-| `/dashboard` | CapitaDashboard | Capità | Dashboard principal |
-| `/team` | CapitaTeam | Capità | Gestionar equipo |
-| `/inscription` | CapitaInscription | Capità | Inscribir + Pagar |
-| `/documents` | CapitaDocuments | Capità | Gestionar docs |
-| `/calendar` | CapitaCalendar | Capità | Ver partidos |
-| `/statistics` | CapitaStatistics | Capità | Estadísticas |
-| `/notifications` | CapitaNotifications | Capità | Notificaciones |
-| `/admin` | AdminDashboard | Admin | Dashboard admin |
+| Ruta | Component | Rol | Funció |
+|------|-----------|-----|--------|
+| `/` | LandingPage | Public | Info general |
+| `/login` | LoginPage | Public | Login JWT |
+| `/register` | RegisterPage | Public | Registrar (capita/jugador) |
+| `/capita/dashboard` | CapitaDashboard | Capità | Dashboard |
+| `/capita/team` | CapitaTeam | Capità | Gestionar equip (read-only) |
+| `/capita/inscription` | CapitaInscription | Capità | Inscripció + Stripe |
+| `/capita/documents` | CapitaDocuments | Capità | Documents per jugador |
+| `/capita/calendar` | CapitaCalendar | Capità | Partits |
+| `/capita/statistics` | CapitaStatistics | Capità | Estadístiques |
+| `/admin` | AdminDashboard | Admin | Dashboard |
 | `/admin/inscriptions` | AdminInscriptions | Admin | Validar docs |
-| `/admin/configurator` | AdminConfigurator | Admin | Configurar torneo |
-| `/arbitre/matches` | ArbitreMatches | Arbitre | Mis partidos |
-| `/jugador` | JugadorDashboard | Jugador | Ver equipo |
+| `/admin/configurator` | AdminConfigurator | Admin | Crear torneig |
+| `/admin/calendar` | AdminCalendar | Admin | Calendari torneigs |
+| `/arbitre/partits` | ArbitreTournaments | Àrbitre | Llista torneigs |
+| `/arbitre/partits/:tournamentId` | ArbitreMatches | Àrbitre | Partits d'un torneig |
+| `/arbitre/match/:matchId` | ArbitreMatchSheet | Àrbitre | Acta digital |
+| `/jugador/dashboard` | JugadorDashboard | Jugador | Dashboard |
+| `/jugador/team` | JugadorTeam | Jugador | Veure equip |
 | `*` | NotFoundPage | Public | 404 |
 
-### CapitaInscription.tsx — Comportamiento actual:
-✅ **NO muestra datos ficticicios**
-✅ Valida que existe equipo en BD
-✅ Valida documentación completa (DNI + Assegurança)
-✅ Desactiva pagamento si faltan documentos
-✅ Conecta con `/api/team/inscription-data`
-✅ Procesa pago vía `/api/team/process-payment`
-✅ Usa AuthContext para JWT
+### Convencions
+- `ProtectedRoute` comprova token i role de l'usuari
+- `useAuth()` hook per accedir a user, login, register, logout
+- `API_BASE_URL` de `services/api.ts` (`https://cambobase-production.up.railway.app`)
+- Token guardat a `localStorage` amb clau `'token'`
+- Totes les peticions porten `Authorization: Bearer <token>`
+- Idiomes: català (UI), castellà (ocasional)
 
 ---
 
-## 🚀 Backend (Express + Node.js + TypeScript + MySQL)
+## 🚀 Backend
 
-### Stack:
-- express@4.x, mysql2@3.x
-- bcrypt@5.x (10 rounds), jwt@9.x (exp 7d)
-- express-validator, cors, dotenv
+### Stack
+- express@4, mysql2@3, node@18+
+- bcrypt (10 rounds), jsonwebtoken (exp 7d)
+- stripe (pagament), resend (email)
+- cors, dotenv, express-validator
 
-### Arquitectura:
-```
-server.ts (entrada)
-  ├── middleware/auth.ts
-  │   ├── verifyToken (JWT validation)
-  │   └── requireRole (RBAC)
-  └── routes/
-      ├── auth.ts         → /api/auth
-      ├── teams.ts        → /api/teams
-      ├── inscriptions.ts → /api/team
-      ├── capita.ts       → /api/dashboard, /api/team/*
-      ├── admin.ts        → /api/admin
-      ├── arbitre.ts      → /api/arbitre
-      └── public.ts       → /api/public
-```
+### Endpoints
 
----
+#### Autenticació (`/api/auth`)
+| Mètode | Endpoint | Auth | Descripció |
+|--------|----------|------|------------|
+| POST | `/api/auth/register` | ❌ | Registrar (capita/jugador) |
+| POST | `/api/auth/login` | ❌ | Login JWT |
+| POST | `/api/auth/register-invited-player` | ❌ | Registrar jugador convidat |
 
-## 📡 Todos los Endpoints (40+)
+#### Equips (`/api/teams`) — Capità
+| Mètode | Endpoint | Descripció |
+|--------|----------|------------|
+| GET | `/api/teams` | Equips de l'usuari |
+| POST | `/api/teams` | Crear equip (genera codi CB-XXXX) |
+| GET | `/api/teams/:id` | Detalls equip |
+| GET | `/api/teams/:id/players` | Jugadors |
+| POST | `/api/teams/:id/invite-player` | Convidar jugador |
+| POST | `/api/teams/join-by-code` | Unir-se per codi |
+| POST | `/api/teams/check-code` | Validar codi d'invitació |
 
-### **Autenticación** (`/api/auth`)
+#### Inscripció (`/api/team`) — Capità
+| Mètode | Endpoint | Descripció |
+|--------|----------|------------|
+| GET | `/api/team/inscription-data` | Dades inscripció |
+| GET | `/api/team/documents` | Documents de l'equip |
+| POST | `/api/team/upload-document` | Pujar DNI/Assegurança/Drets imatge |
+| POST | `/api/team/create-payment-intent` | Crear PaymentIntent Stripe |
+| POST | `/api/team/process-payment` | Confirmar pagament |
 
-| Método | Endpoint | Auth | Descripción |
-|--------|----------|------|-------------|
-| POST | `/api/auth/register` | ❌ | Registrar Capità |
-| POST | `/api/auth/login` | ❌ | Login (JWT) |
-| POST | `/api/auth/register-invited-player` | ❌ | Registrar Jugador |
+#### Dashboard Capità (`/api/*`)
+| Mètode | Endpoint | Descripció |
+|--------|----------|------------|
+| GET | `/api/dashboard` | Dashboard |
+| GET | `/api/team/players` | Jugadors |
+| GET | `/api/team/matches` | Partits |
+| GET | `/api/team/statistics` | Estadístiques |
+| GET | `/api/team/calendar` | Calendari |
 
-**Register Request:**
-```json
-{
-  "name": "Joan García",
-  "email": "joan@example.com",
-  "password": "secure123",
-  "confirmPassword": "secure123"
-}
-```
-
-**Register Response:**
-```json
-{
-  "message": "User registered successfully",
-  "userId": 1,
-  "token": "eyJhbGc..."
-}
-```
-
-### **Equipos** (`/api/teams`) — Solo Capità
-
-| Método | Endpoint | Descripción |
-|--------|----------|-------------|
-| GET | `/api/teams` | Listar equipos del usuario |
-| POST | `/api/teams` | Crear nuevo equipo |
-| GET | `/api/teams/:id` | Detalles del equipo |
-| GET | `/api/teams/:id/players` | Jugadores del equipo |
-| POST | `/api/teams/:id/invite-player` | Invitar jugador |
-
-**Create Team:**
-```json
-// Request POST /api/teams
-{
-  "name": "Els Invencibles",
-  "sport": "futsal" // futsal, basquet3x3, padel
-}
-```
-
-### **Inscripción** (`/api/team`) — Capità
-
-| Método | Endpoint | Descripción |
-|--------|----------|-------------|
-| GET | `/api/team/inscription-data` | Datos inscripción |
-| GET | `/api/team/documents` | Documentos del equipo |
-| POST | `/api/team/upload-document` | Subir DNI/Assegurança |
-| POST | `/api/team/process-payment` | Procesar pago |
-
-**Inscription Data:**
-```json
-// Response GET /api/team/inscription-data
-{
-  "teamData": {
-    "teamName": "Els Invencibles",
-    "sport": "futsal",
-    "players": ["Marc López", "Joan Garcia"],
-    "amount": 150,
-    "status": "pendent_docs",
-    "documentsReady": false
-  }
-}
-```
-
-### **Dashboard Capità** (`/api/*`)
-
-| Método | Endpoint | Descripción |
-|--------|----------|-------------|
-| GET | `/api/dashboard` | Dashboard principal |
-| GET | `/api/team/players` | Jugadores |
-| GET | `/api/team/matches` | Partidos del equipo |
-| GET | `/api/team/statistics` | Estadísticas |
-| GET | `/api/notifications` | Notificaciones |
-
-**Dashboard Response:**
-```json
-{
-  "teamName": "Els Invencibles",
-  "sport": "futsal",
-  "status": "pendent_docs",
-  "nextMatch": {
-    "date": "2026-05-25T18:00:00Z",
-    "court": "Pista 1",
-    "opponent": "Team B"
-  },
-  "statistics": {
-    "wins": 3,
-    "draws": 1,
-    "losses": 0,
-    "matches_played": 4
-  },
-  "pendingDocuments": 2
-}
-```
-
-### **Admin** (`/api/admin`) — Solo Admin
-
-| Método | Endpoint | Descripción |
-|--------|----------|-------------|
+#### Admin (`/api/admin`)
+| Mètode | Endpoint | Descripció |
+|--------|----------|------------|
 | GET | `/api/admin/dashboard` | Dashboard admin |
-| GET | `/api/admin/inscriptions` | Inscripciones pendientes |
-| GET | `/api/admin/inscriptions/:teamId` | Docs equipo |
-| POST | `/api/admin/inscriptions/:teamId/approve-document` | Aprobar |
-| POST | `/api/admin/inscriptions/:teamId/reject-document` | Rechazar |
-| POST | `/api/admin/generate-calendar` | Generar calendario |
+| GET | `/api/admin/inscriptions` | Inscripcions pendents |
+| GET | `/api/admin/inscriptions/:teamId` | Detall docs per equip |
+| POST | `/api/admin/inscriptions/:teamId/approve-all` | Aprovar tots els docs |
+| POST | `/api/admin/inscriptions/:teamId/approve-document` | Aprovar doc individual |
+| POST | `/api/admin/inscriptions/:teamId/reject-document` | Rebutjar doc (amb motiu) |
+| GET | `/api/admin/download-document/:documentId` | Descarregar document |
+| GET | `/api/admin/tournaments` | Llistar torneigs |
+| GET | `/api/admin/tournaments/:id/matches` | Partits d'un torneig |
+| POST | `/api/admin/matches/:id/assign-referee` | Assignar àrbitre |
+| POST | `/api/admin/generate-calendar` | Generar calendari |
+| GET | `/api/admin/users?role=arbitre` | Llistar àrbitres |
+| POST | `/api/admin/invite-referee` | Crear àrbitre |
+| DELETE | `/api/admin/users/:id` | Eliminar usuari |
+| POST | `/api/admin/reset-db` | Reiniciar BD (excepte admin) |
 
-### **Árbitro** (`/api/arbitre`) — Solo Arbitre
+#### Àrbitre (`/api/arbitre`)
+| Mètode | Endpoint | Descripció |
+|--------|----------|------------|
+| GET | `/api/arbitre/tournaments` | Torneigs assignats |
+| GET | `/api/arbitre/matches?tournamentId=X` | Partits (filtrat per torneig) |
+| GET | `/api/arbitre/match/:matchId` | Detalls partit |
+| POST | `/api/arbitre/match/:matchId/sheet` | Guardar incidència a l'acta |
+| GET | `/api/arbitre/match/:matchId/sheet` | Obtenir acta |
+| POST | `/api/arbitre/match/:matchId/close` | Tancar acta + generar PDF |
+| GET | `/api/arbitre/match/:matchId/pdf` | Descarregar PDF |
 
-| Método | Endpoint | Descripción |
-|--------|----------|-------------|
-| GET | `/api/arbitre/matches` | Mis partidos |
-| GET | `/api/arbitre/match/:matchId` | Detalles partido |
-| POST | `/api/arbitre/match/:matchId/sheet` | Guardar acta |
-| GET | `/api/arbitre/match/:matchId/sheet` | Obtener acta |
+#### Jugador (`/api/jugador`)
+| Mètode | Endpoint | Descripció |
+|--------|----------|------------|
+| GET | `/api/jugador/dashboard` | Dashboard |
+| GET | `/api/jugador/team` | Equip actual |
+| GET | `/api/jugador/matches` | Partits |
 
-### **Public** (`/api/public`) — Sin autenticación
+#### Públiques (`/api/public`)
+| Mètode | Endpoint | Descripció |
+|--------|----------|------------|
+| GET | `/api/public/matches` | Pròxims partits |
+| GET | `/api/invitations/:token` | Dades invitació |
 
-| Método | Endpoint | Descripción |
-|--------|----------|-------------|
-| GET | `/api/public/matches` | Próximos partidos |
-| GET | `/api/invitations/:token` | Datos invitación |
-
-### **Health Check**
-
-| Método | Endpoint |
+#### Health
+| Mètode | Endpoint |
 |--------|----------|
 | GET | `/api/health` |
 
 ---
 
-## 🗄️ Base de Datos (MySQL `campo_base`)
+## 🗄️ Base de Dades (MySQL)
 
-### 10 Tablas principales:
+### Migracions automàtiques (`connection.ts`)
+- `courts.tournament_id` nullable
+- `teams.invite_code` (VARCHAR 10, UNIQUE)
+- `documents.document_type` ENUM inclou `image_rights`
+- `tournaments` columnes: sport, status, start_date, end_date, match_duration_minutes
+- `documents.file_data` LONGTEXT (base64)
+- `tournaments.match_duration` nullable
 
-#### `users` — Usuarios del sistema
-```sql
-id (INT, PK, AI)
-name (VARCHAR 255)
-email (VARCHAR 100, UNIQUE)
-password (VARCHAR 255, bcrypt)
-role (ENUM: admin, capita, arbitre, jugador)
-email_verified (BOOLEAN, default FALSE)
-created_at, updated_at (TIMESTAMP)
-Índices: email, role
+### Taules principals
+
+#### `users`
+| Col | Tipus |
+|-----|-------|
+| id | INT PK AI |
+| name | VARCHAR(255) |
+| email | VARCHAR(100) UNIQUE |
+| password | VARCHAR(255) bcrypt |
+| role | ENUM(admin,capita,arbitre,jugador) |
+| email_verified | BOOLEAN |
+| created_at | TIMESTAMP |
+
+#### `teams`
+| Col | Tipus |
+|-----|-------|
+| id | INT PK AI |
+| name | VARCHAR(255) |
+| sport | ENUM(futsal,basquet3x3,padel) |
+| invite_code | VARCHAR(10) UNIQUE |
+| status | ENUM(pendent_docs,pendent_pagament,inscrit,actiu) |
+| capita_id | INT FK→users |
+| created_at | TIMESTAMP |
+
+#### `team_players`
+| Col | Tipus |
+|-----|-------|
+| team_id | INT FK→teams |
+| user_id | INT FK→users |
+| dorsal | INT |
+| position | VARCHAR(50) |
+| PK | (team_id, user_id) |
+
+#### `documents`
+| Col | Tipus |
+|-----|-------|
+| id | INT PK AI |
+| user_id | INT FK→users |
+| team_id | INT FK→teams |
+| document_type | ENUM(dni,asseguranca,image_rights) |
+| file_path | VARCHAR(500) |
+| file_data | LONGTEXT (base64) |
+| status | ENUM(pendent,aprovat,rebutjat) |
+| rejection_reason | TEXT |
+| created_at | TIMESTAMP |
+
+#### `tournaments`
+| Col | Tipus |
+|-----|-------|
+| id | INT PK AI |
+| name | VARCHAR(255) |
+| sport | VARCHAR(20) |
+| format | ENUM(lliga,grups,eliminatoria,mixt) |
+| status | VARCHAR(20) |
+| points_win/draw/loss | INT |
+| tiebreaker | VARCHAR(200) |
+| match_duration | INT (minuts) |
+| match_duration_minutes | INT |
+| start_date, end_date | DATE |
+| created_at | TIMESTAMP |
+
+#### `courts`
+| Col | Tipus |
+|-----|-------|
+| id | INT PK AI |
+| tournament_id | INT FK→tournaments (nullable) |
+| name | VARCHAR(100) |
+| location | VARCHAR(200) |
+| created_at | TIMESTAMP |
+
+#### `matches`
+| Col | Tipus |
+|-----|-------|
+| id | INT PK AI |
+| tournament_id | INT FK→tournaments |
+| home_team_id | INT FK→teams |
+| away_team_id | INT FK→teams |
+| court_id | INT FK→courts |
+| arbitre_id | INT FK→users |
+| match_date | DATETIME |
+| status | ENUM(pendent,en_curs,finalitzat,cancel·lat) |
+| created_at | TIMESTAMP |
+
+#### `match_sheets`
+| Col | Tipus |
+|-----|-------|
+| id | INT PK AI |
+| match_id | INT FK→matches |
+| incidents | JSON (auto-parsed per mysql2) |
+| home_score, away_score | INT |
+| status | ENUM(actiu,tancat,immutable) |
+| pdf_url | VARCHAR(500) |
+| closed_at | TIMESTAMP |
+| created_at | TIMESTAMP |
+
+**Nota**: `incidents` és columna JSON de MySQL. `mysql2` la parseja automàticament a objecte. El codi fa `typeof === 'object'` per evitar `JSON.parse(object)` erroni.
+
+---
+
+## 🔐 Control d'accés (RBAC)
+
+| Rol | Crea | Valida | Veu | Endpoints |
+|-----|------|--------|-----|-----------|
+| **Capità** | Equip, invitacions | — | Seu equip | /api/teams, /api/team, /api/dashboard |
+| **Jugador** | — | — | Seu equip | /api/jugador/* |
+| **Àrbitre** | Actes | — | Partits assignats | /api/arbitre/* |
+| **Admin** | Torneigs | Documents | Tot | /api/admin/* |
+
+---
+
+## 📋 Fluxos principals
+
+### Registre + Equip
+```
+1. POST /api/auth/register → user creat (capita/jugador)
+2. POST /api/teams → equip creat, genera codi CB-XXXX
+3. Jugadors s'uneixen via POST /api/teams/join-by-code (codi)
 ```
 
-#### `teams` — Equipos con estado
-```sql
-id (INT, PK, AI)
-name (VARCHAR 255)
-sport (ENUM: futsal, basquet3x3, padel)
-status (ENUM: pendent_docs, pendent_pagament, pendent_validacio, inscrit, actiu)
-capita_id (INT, FK → users.id)
-created_at (TIMESTAMP)
-Índices: capita_id, sport, status
+### Inscripció
+```
+1. Capità puja documents (dni, asseguranca, image_rights)
+2. Admin aprova/rebutja per document (POST /api/admin/*/approve-document)
+3. Quan tots 3 aprovats → equip passa a pendent_pagament
+4. Capità paga via Stripe (create-payment-intent → confirm → process-payment)
+5. Pagament OK → equip passa a inscrit
 ```
 
-#### `team_players` — Jugadores en equipos
-```sql
-team_id (INT, FK → teams.id)
-user_id (INT, FK → users.id)
-dorsal (INT)
-position (VARCHAR 50)
-created_at (TIMESTAMP)
-PK: (team_id, user_id)
+### Calendari
+```
+1. Admin configura: dates, horari, format, equips, punts
+2. POST /api/admin/generate-calendar:
+   - Crea torneig a BD
+   - Genera enfrontaments segons format
+   - Assigna horari (startTime-endTime), pistes
+   - Respecta: partits/dia torneig, partits/dia equip
+   - Desa partits a BD
+   - Equips passen a actiu
 ```
 
-#### `documents` — DNI y Assegurança
-```sql
-id (INT, PK, AI)
-user_id (INT, FK → users.id)
-team_id (INT, FK → teams.id)
-document_type (ENUM: dni, asseguranca)
-file_path (VARCHAR 500)
-status (ENUM: pendent, aprovat, rebutjat)
-rejection_reason (TEXT)
-created_at (TIMESTAMP)
-Índices: user_id, team_id, status
+### Acta digital
 ```
-
-#### `inscriptions` — Inscripción a torneo
-```sql
-id (INT, PK, AI)
-team_id (INT, FK → teams.id)
-tournament_id (INT, FK → tournaments.id)
-status (ENUM: pendent_docs, pendent_pagament, pendent_validacio, inscrit)
-amount (DECIMAL 8,2)
-payment_date (TIMESTAMP)
-created_at (TIMESTAMP)
-PK: (team_id, tournament_id) UNIQUE
-```
-
-#### `tournaments` — Torneos/Campeonatos
-```sql
-id (INT, PK, AI)
-name (VARCHAR 255)
-format (ENUM: grups, lliga, eliminatoria, mixt)
-points_win (INT, default 3)
-points_draw (INT, default 1)
-points_loss (INT, default 0)
-tiebreaker (VARCHAR 200)
-match_duration (INT, minutos)
-break_between_matches (INT, minutos)
-start_time (TIME)
-created_at (TIMESTAMP)
-```
-
-#### `courts` — Pistas/Instalaciones
-```sql
-id (INT, PK, AI)
-tournament_id (INT, FK → tournaments.id)
-name (VARCHAR 100)
-location (VARCHAR 200)
-availability (JSON)
-created_at (TIMESTAMP)
-```
-
-#### `matches` — Partidos del torneo
-```sql
-id (INT, PK, AI)
-tournament_id (INT, FK → tournaments.id)
-home_team_id (INT, FK → teams.id)
-away_team_id (INT, FK → teams.id)
-court_id (INT, FK → courts.id)
-arbitre_id (INT, FK → users.id)
-match_date (DATETIME)
-status (ENUM: pendent, en_curs, finalitzat, cancel·lat)
-created_at (TIMESTAMP)
-Índices: tournament_id, home_team_id, away_team_id, status
-```
-
-#### `match_sheets` — Actas digitales
-```sql
-id (INT, PK, AI)
-match_id (INT, UNIQUE, FK → matches.id)
-incidents (JSON) — {goals, cards, fouls}
-status (ENUM: en_curs, tancada, immutable)
-pdf_url (VARCHAR 500)
-closed_at (TIMESTAMP)
-created_at (TIMESTAMP)
-```
-
-### Relaciones:
-```
-users (1) ──── (N) teams
-  │ ├─── (N) documents
-  │ └─── (N) matches (arbitre)
-  
-teams (1) ──── (N) team_players
-           ──── (N) matches (home/away)
-           ──── (N) inscriptions
-           
-tournaments (1) ──── (N) matches
-            ──── (N) courts
-            ──── (N) inscriptions
-
-matches (1) ──── (1) match_sheets
+1. Àrbitre veu torneigs i partits
+2. Obre acta: configura alineacions
+3. Durant partit: registra gols/targetes/faltes/punts
+   - POST /api/arbitre/match/:matchId/sheet
+   - incidents columna JSON s'actualitza
+4. Desfer últim incident
+5. Tancar acta → PDF generat
 ```
 
 ---
 
-## 🔐 Control de Acceso (RBAC)
+## 🌐 Desplegament
 
-### Permisos por rol:
+| Servei | URL | Provider |
+|--------|-----|----------|
+| Frontend | `https://cambo-base.vercel.app` | Vercel (auto-deploy des de main) |
+| Backend | `https://cambobase-production.up.railway.app` | Railway (auto-deploy des de main) |
+| Base de dades | MySQL a Railway | Railway |
+| Stripe | Pagaments | Stripe |
+| Resend | Emails | Resend HTTP API |
 
-| Rol | Crear | Validar | Ver | APIs |
-|-----|-------|---------|-----|------|
-| **Capità** | Equipo, invitaciones | - | Su equipo | /api/teams, /api/team, /api/dashboard |
-| **Jugador** | - | - | Su equipo | /api/team/matches, /api/notifications |
-| **Arbitre** | - | - | Sus partidos | /api/arbitre/* |
-| **Admin** | - | Documentos | Todo | /api/admin/* |
+### Variables d'entorn
+**Railway (backend):**
+- `MYSQL_URL`, `JWT_SECRET`, `STRIPE_SECRET_KEY`, `RESEND_API_KEY`
+- `STRIPE_WEBHOOK_SECRET`, `FRONTEND_URL`
 
-### Validación:
-```typescript
-// 1. verifyToken middleware
-Authorization: Bearer <token>
-  → JWT.verify() → userId, role
-
-// 2. requireRole middleware
-requireRole(['admin'])
-  → if (!user.role in roles) → 403
-
-// 3. Validación en endpoint
-if (req.userId !== resource.owner) → 403
-```
+**Vercel (frontend):**
+- `VITE_API_URL=https://cambobase-production.up.railway.app`
+- `VITE_STRIPE_PUBLISHABLE_KEY`
 
 ---
 
-## 📋 Flujo de Inscripción Completo
+## ⚙️ Generació de calendari
 
-```
-1. CAPITÀ CREA EQUIPO
-   POST /api/teams
-   → teams.status = 'pendent_docs'
+El `calendarService.ts` implementa 4 formats:
+- `lliga` → round-robin (tots contra tots)
+- `grups` → 2 grups amb round-robin intern
+- `eliminatoria` → eliminació directa (byes automàtics)
+- `mixt` → grups + eliminatòria
 
-2. CAPITÀ AGREGA JUGADORES
-   POST /api/teams/:id/invite-player
-   → team_players creadas
+Paràmetres de schedule:
+- startDate / endDate: finestra de dies
+- startTime / endTime: franja horària diària
+- matchDurationMinutes + breakMinutes: espaiat entre partits
+- matchesPerDay: total partits/dia al torneig
+- matchesPerTeamPerDay: màxim partits/dia per equip
+- courts: nombre de pistes (paral·lelisme)
 
-3. CAPITÀ SUBE DOCUMENTACIÓN
-   POST /api/team/upload-document (DNI + Assegurança)
-   → documents.status = 'pendent'
-
-4. CAPITÀ PAGA
-   POST /api/team/process-payment
-   → teams.status = 'pendent_validacio'
-   → inscriptions.status = 'pendent_validacio'
-
-5. ADMIN VALIDA
-   GET /api/admin/inscriptions/:teamId
-   POST /api/admin/inscriptions/:teamId/approve-document
-   → documents.status = 'aprovat'
-   → Si todos OK: teams.status = 'inscrit'
-
-6. ADMIN GENERA CALENDARIO
-   POST /api/admin/generate-calendar
-   → tournaments creado
-   → matches creados
-   → teams.status = 'actiu'
-
-7. EQUIPO LISTO
-   ✓ Puede ver partidos
-   ✓ Árbitres pueden hacer actas
-```
-
-### Flujo de Acta Arbitral:
-
-```
-1. ÁRBITRO VE PARTIDOS
-   GET /api/arbitre/matches
-
-2. ÁRBITRO ABRE PARTIDO
-   GET /api/arbitre/match/:matchId
-   → Detecta deporte (futsal/basquet/padel)
-
-3. DURANTE MATCH
-   POST /api/arbitre/match/:matchId/sheet
-   → incidents JSON actualizado
-   → match_sheets.status = 'en_curs'
-
-4. CIERRA ACTA
-   POST /api/arbitre/match/:matchId/sheet
-   → match_sheets.status = 'tancada'
-   → matches.status = 'finalitzat'
-   → Auto-genera PDF
-
-5. EQUIPO VE RESULTADO
-   GET /api/team/matches/:matchId → resultado
-```
+L'algorisme comença a `startDate` a `startTime`, intenta programar cada partit. Avança linealment (durada+pausa). Si un equip ja ha jugat el màxim per dia, o la pista està ocupada, passa al següent slot. Quan s'arriba a `endTime`, passa al dia següent a `startTime`.
 
 ---
 
-## 🔐 Autenticación (JWT)
+## 🧪 Usuaris de test
 
-### Registro:
-```
-1. POST /api/auth/register { name, email, password }
-2. Backend:
-   - Valida entrada
-   - Verifica email no existe
-   - bcrypt.hash(password, 10)
-   - INSERT users (role: 'capita')
-   - jwt.sign({ id, email, role })
-3. Frontend:
-   - localStorage.setItem('token', token)
-   - AuthContext.setUser()
-   - Redirige a /dashboard
-```
-
-### Login:
-```
-1. POST /api/auth/login { email, password }
-2. Backend:
-   - SELECT user WHERE email
-   - bcrypt.compare(password, hash)
-   - jwt.sign({ id, email, role })
-3. Frontend:
-   - localStorage.setItem('token', token)
-   - Redirige según role
-```
-
-### Protección de rutas:
-```
-Frontend:
-→ AuthContext verifica token en localStorage
-→ Si no token → /login
-→ Si token inválido → /login, borra token
-
-Backend:
-→ verifyToken middleware en todas rutas
-→ Si no Authorization header → 401
-→ Si JWT inválido → 401
-→ Si JWT expirado → 401
-```
-
-### Endpoints públicos:
-```
-- POST /api/auth/register
-- POST /api/auth/login
-- POST /api/auth/register-invited-player
-- GET /api/public/matches
-- GET /api/invitations/:token
-- GET /api/health
-```
+| Email | Password | Rol |
+|-------|----------|-----|
+| testuser@test.com | test123 | admin |
 
 ---
 
-## 🛠️ Instalación y Configuración
+## 📌 Decisions tècniques clau
 
-### 1. Base de Datos (MySQL WAMP)
-
-**Opción A: phpMyAdmin**
-```
-1. Abre http://localhost/phpmyadmin
-2. Crea BD: campo_base
-3. Importa: backend/src/db/schema.sql
-```
-
-**Opción B: Terminal**
-```bash
-mysql -u root < backend/src/db/schema.sql
-```
-
-### 2. Instalar dependencias
-
-```bash
-# Desde raíz
-pnpm install
-```
-
-### 3. Variables de entorno
-
-**backend/.env:**
-```
-DB_HOST=localhost
-DB_PORT=3306
-DB_USER=root
-DB_PASSWORD=
-DB_NAME=campo_base
-
-JWT_SECRET=super_secret_key_change_in_production
-JWT_EXPIRE=7d
-
-PORT=3001
-NODE_ENV=development
-```
-
-**frontend/.env:**
-```
-VITE_API_URL=http://localhost:3001/api
-```
-
-### 4. Ejecutar
-
-```bash
-# Terminal 1 - Backend
-cd backend && npm run dev
-# → ✓ Server running on http://localhost:3001
-
-# Terminal 2 - Frontend
-cd frontend && npm run dev
-# → Local: http://localhost:5173
-
-# O desde raíz
-pnpm dev
-```
-
----
-
-## 📊 Estado del Proyecto
-
-### ✅ Completado
-
-**Backend (40+ endpoints):**
-- [x] Autenticación JWT con roles
-- [x] Rutas teams (CRUD + invitaciones)
-- [x] Rutas inscripción (documentos, pagos)
-- [x] Dashboard capita (datos reales)
-- [x] Dashboard admin (validaciones, calendario)
-- [x] Rutas árbitro (actas, partidos)
-- [x] Rutas públicas (matches, invitaciones)
-- [x] Middleware autenticación
-- [x] Control de acceso por rol
-- [x] Schema BD completo (10 tablas)
-- [x] Integración MySQL2
-
-**Frontend:**
-- [x] LoginPage → API real
-- [x] RegisterPage → API real
-- [x] AuthContext (JWT + roles)
-- [x] CapitaInscription (datos BD, SIN ficticios)
-- [x] CapitaDashboard (datos reales)
-- [x] Admin pages (validación real)
-- [x] Páginas protegidas
-- [x] Loading states (todas)
-- [x] Error handling (completo)
-- [x] Empty states (catalán)
-
-**Documentación:**
-- [x] ESPECIFICACIO_FUNCIONAL.md (catalán)
-- [x] ARCHITECTURE.md (este archivo)
-
-### 🔄 Próximos pasos (opcional):
-
-- [ ] Upload real de documentos (multipart)
-- [ ] Email verification
-- [ ] Invitaciones por email
-- [ ] Notificaciones en tiempo real (WebSockets)
-- [ ] Generación calendario inteligente
-- [ ] Generación PDF actas
-- [ ] Refresh tokens
-- [ ] Rate limiting
-- [ ] Tests (unitarios + E2E)
-- [ ] Deployment
-
----
-
-## 🐛 Debugging
-
-### Verificar servidor:
-```bash
-curl http://localhost:3001/api/health
-# {"status":"OK","timestamp":"..."}
-```
-
-### Ver logs:
-```bash
-# Terminal backend mostrará logs en tiempo real
-npm run dev
-```
-
-### JWT debugging:
-```javascript
-// DevTools console
-localStorage.getItem('token')
-// Decodifica en https://jwt.io
-```
-
-### Network requests:
-```
-F12 → Network → Filter XHR/Fetch
-Ver Request/Response headers
-Verificar Authorization header
-```
-
----
-
-## 📚 Stack tecnológico
-
-**Frontend:**
-- React@18, React Router@6, TypeScript@5
-- TailwindCSS@3, Vite@4, shadcn/ui
-- lucide-react (iconos)
-
-**Backend:**
-- Express@4, MySQL2@3, Node.js@18+
-- bcrypt@5, jsonwebtoken@9
-- express-validator, cors, dotenv
-
-**BD:**
-- MySQL 8.x (WAMP)
-- 10 tablas + índices
-- Foreign keys, constraints
-
----
-
-## 📝 Notas importantes
-
-### Para el Capità:
-- **Sin equipo?** → POST /api/teams para crear
-- **Sin docs?** → POST /api/team/upload-document
-- **Pago OK?** → Status: "pendent_validacio" → espera admin
-
-### Para el Admin:
-- **Validar docs** → GET /api/admin/inscriptions/:teamId
-- **Generar calendario** → POST /api/admin/generate-calendar
-- **Ver estado** → GET /api/admin/dashboard
-
-### Para el Arbitre:
-- **Ver partidos** → GET /api/arbitre/matches
-- **Cargar acta** → POST /api/arbitre/match/:matchId/sheet
-- **Detalles** → Según deporte (futsal/basquet/padel)
-
-### Seguridad:
-- ✅ Contraseñas bcrypt (10 rounds)
-- ✅ JWT (7 días exp)
-- ✅ CORS limitado
-- ✅ SQL injection prevenido
-- ✅ RBAC en cada endpoint
-- ⚠️ TODO: Change JWT_SECRET en producción
-- ⚠️ TODO: Rate limiting
-
----
-
-**Última actualización:** Mayo 2026 | **Versión:** 2.0 (Backend Completo) | **Estado:** ✅ Listo para testing
+- **Documents a BD**: `file_data` LONGTEXT (base64) → sobreviu a restarts de Railway
+- **Notifications eliminades**: cap endpoint, taula o component de notificacions
+- **Stripe real**: no simulació; 3DS redirect detectat via URL params
+- **Format BD en català**: `lliga`, `grups`, `eliminatoria`, `mixt` → mapejat a anglès al servei
+- **`matches` no té `sport`**: es fa JOIN amb `tournaments` per obtenir l'esport
+- **JWT import**: `import jwt from 'jsonwebtoken'` (estàtic, no dinàmic)
+- **JSON column**: mysql2 parseja automàticament `JSON` → codi fa `typeof === 'object'`
