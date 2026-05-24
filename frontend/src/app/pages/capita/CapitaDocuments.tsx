@@ -34,7 +34,7 @@ export default function CapitaDocuments() {
     image_rights: 'Drets d\'imatge',
   };
 
-  const fetchPlayerDocuments = async () => {
+  const fetchPlayerDocuments = async (tid?: number) => {
     try {
       setIsLoading(true);
       const token = localStorage.getItem('token');
@@ -45,7 +45,6 @@ export default function CapitaDocuments() {
       });
       
       if (!response.ok) {
-        // Treat 401/403 as actual errors, but 404 or other as "no data"
         if (response.status === 401 || response.status === 403) {
           throw new Error('Access denied');
         }
@@ -60,27 +59,23 @@ export default function CapitaDocuments() {
         setNoPlayers(true);
         setDocuments([]);
       } else {
-        // Ensure each player has 3 document slots (dni, asseguranca, image_rights)
         const docs: Document[] = data.documents || [];
         // Use players from API response, or fetch them as fallback
         let players: { id: number; name: string }[] = data.players || [];
-        if (players.length === 0 && teamId) {
+        if (players.length === 0 && tid) {
           try {
-            const token = localStorage.getItem('token');
-            const pRes = await fetch(`${API_BASE_URL}/team/players?teamId=${teamId}`, {
+            const pRes = await fetch(`${API_BASE_URL}/team/players?teamId=${tid}`, {
               headers: { Authorization: `Bearer ${token}` }
             });
             if (pRes.ok) players = await pRes.json();
           } catch { /* ignore */ }
         }
         const allTypes = ['dni', 'asseguranca', 'image_rights'];
-        // Build map of user_id -> set of document types they have
         const uploadedByUser: Record<number, Set<string>> = {};
         docs.forEach(d => {
           if (!uploadedByUser[d.user_id]) uploadedByUser[d.user_id] = new Set();
           uploadedByUser[d.user_id].add(d.document_type);
         });
-        // Create empty slots for each player for missing types
         const filled = [...docs];
         players.forEach(p => {
           const existing = uploadedByUser[p.id] || new Set();
@@ -111,26 +106,25 @@ export default function CapitaDocuments() {
   };
 
   useEffect(() => {
-    // Get team ID
-    const getTeamId = async () => {
+    const init = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`${API_BASE_URL}/teams`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
+        const teamRes = await fetch(`${API_BASE_URL}/teams`, {
+          headers: { Authorization: `Bearer ${token}` }
         });
-        const data = await response.json();
-        if (data && Array.isArray(data) && data.length > 0) {
-          setTeamId(data[0].id);
+        const teamData = await teamRes.json();
+        if (teamData && Array.isArray(teamData) && teamData.length > 0) {
+          const tid = teamData[0].id;
+          setTeamId(tid);
+          await fetchPlayerDocuments(tid);
+        } else {
+          await fetchPlayerDocuments();
         }
       } catch (err) {
-        console.error('Error getting team ID:', err);
+        console.error('Error initializing:', err);
       }
     };
-
-    getTeamId();
-    fetchPlayerDocuments();
+    init();
   }, []);
 
   if (isLoading) {
