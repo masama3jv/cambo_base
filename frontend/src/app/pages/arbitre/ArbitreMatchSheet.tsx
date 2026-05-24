@@ -96,10 +96,10 @@ export default function ArbitreMatchSheet() {
       if (sheetResponse.ok) {
         const sd = await sheetResponse.json();
         setSheetData(sd);
-        if (sd.lineups) {
-          setHomeStarting(sd.lineups.homeTeam.starting || []);
-          setAwayStarting(sd.lineups.awayTeam.starting || []);
-        }
+        const homeStart = sd.lineups?.homeTeam?.starting;
+        const awayStart = sd.lineups?.awayTeam?.starting;
+        if (homeStart) setHomeStarting(homeStart);
+        if (awayStart) setAwayStarting(awayStart);
       }
 
       setLoading(false);
@@ -177,9 +177,12 @@ export default function ArbitreMatchSheet() {
   const openSubModal = (teamId: number) => {
     const isHome = teamId === sheetData?.homeTeamId;
     const starting = isHome ? homeStarting : awayStarting;
+    const allPlayers = isHome
+      ? (matchInfo?.homePlayers.map((p: any) => p.name) || [])
+      : (matchInfo?.awayPlayers.map((p: any) => p.name) || []);
     const subs = isHome
-      ? (sheetData?.lineups?.homeTeam.substitutes || [])
-      : (sheetData?.lineups?.awayTeam.substitutes || []);
+      ? (sheetData?.lineups?.homeTeam.substitutes || allPlayers.filter(n => !homeStarting.includes(n)))
+      : (sheetData?.lineups?.awayTeam.substitutes || allPlayers.filter(n => !awayStarting.includes(n)));
 
     setSubTeamId(teamId);
     setSubPlayerOut(starting[0] || '');
@@ -202,10 +205,10 @@ export default function ArbitreMatchSheet() {
 
   const recordIncident = async (action: string, teamId: number, playerName?: string, points?: number, extraData?: any) => {
     if (!['set_result', 'substitution', 'timeout', 'save_lineups'].includes(action) && !playerName && !extraData?.playerIn) {
-      setMessage('Selecciona un jugador abans de registrar');
-      setTimeout(() => setMessage(''), 3000);
+      setError('Selecciona un jugador al desplegable abans de registrar');
       return;
     }
+    setError('');
 
     try {
       const token = localStorage.getItem('token');
@@ -494,9 +497,11 @@ export default function ArbitreMatchSheet() {
         {sport !== 'padel' && (
           <div className="bg-white rounded-lg shadow-md p-4 mb-4">
             <label className="text-sm font-bold text-gray-700 block mb-2 text-center">Minut Actual</label>
-            <input type="number" min="0" max="120" value={minute}
+            <input type="number" min="0" max={Math.max((matchInfo.match.match_duration_minutes || 40) + 10, 50)}
+              value={minute}
               onChange={(e) => setMinute(parseInt(e.target.value) || 0)}
               className="w-full max-w-[150px] mx-auto block px-4 py-3 border-2 border-gray-300 rounded-lg text-center text-xl font-bold focus:border-[#D85A30] outline-none" />
+            <p className="text-xs text-gray-400 text-center mt-1">Durada del partit: {matchInfo.match.match_duration_minutes || 40} min</p>
           </div>
         )}
 

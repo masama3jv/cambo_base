@@ -84,11 +84,13 @@ router.get('/match/:matchId', verifyToken, requireRole(['arbitre']), async (req:
         t1.name as home_team_name,
         t1.sport,
         t2.name as away_team_name,
-        c.name as court_name
+        c.name as court_name,
+        tr.match_duration_minutes as match_duration_minutes
       FROM matches m
       LEFT JOIN teams t1 ON m.home_team_id = t1.id
       LEFT JOIN teams t2 ON m.away_team_id = t2.id
       LEFT JOIN courts c ON m.court_id = c.id
+      LEFT JOIN tournaments tr ON m.tournament_id = tr.id
       WHERE m.id = ? AND m.arbitre_id = ?
     `, [matchId, req.userId]) as any[];
 
@@ -308,6 +310,7 @@ router.get('/match/:matchId/sheet', verifyToken, requireRole(['arbitre']), async
       homeScore: sheet.home_score || sheetData.homeScore || 0,
       awayScore: sheet.away_score || sheetData.awayScore || 0,
       status: sheet.status || 'actiu',
+      lineups: sheetData.lineups || null,
       incidents: sheetData.incidents || [],
       startTime: sheet.created_at || new Date()
     });
