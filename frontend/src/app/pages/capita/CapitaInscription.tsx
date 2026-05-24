@@ -34,6 +34,9 @@ function PaymentForm({ teamId, amount, onSuccess, onError }: { teamId: number; a
     try {
       const { error, paymentIntent } = await stripe.confirmPayment({
         elements,
+        confirmParams: {
+          return_url: `${window.location.origin}${window.location.pathname}`,
+        },
         redirect: 'if_required',
       });
 
@@ -116,11 +119,15 @@ export default function CapitaInscription() {
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({ teamId: tid, amount: 150, paymentIntentId: redirectPiId }),
               });
+              window.history.replaceState({}, document.title, window.location.pathname);
               setPaymentComplete(true);
               setIsLoading(false);
               return;
             }
           }
+        } else if (redirectPiId && redirectStatus) {
+          window.history.replaceState({}, document.title, window.location.pathname);
+          setStripeError('El pagament no s ha completat. Torna-ho a provar.');
         }
 
         const response = await fetch(`${API_BASE_URL}/team/inscription-data`, {

@@ -205,7 +205,7 @@ export function undoLastIncident(sheet: MatchSheet): MatchSheet {
   return sheet;
 }
 
-export async function generateMatchSheetPDF(
+async function generateLegacyMatchSheetPDF(
   sheet: MatchSheet,
   homeTeamName: string,
   awayTeamName: string,
@@ -271,6 +271,93 @@ export async function generateMatchSheetPDF(
       }
 
       doc.moveDown();
+      doc.fontSize(8).text('Generat per Campo Base', { align: 'center' });
+
+      doc.end();
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
+export async function generateMatchSheetPDF(
+  sheet: MatchSheet,
+  homeTeamName: string,
+  awayTeamName: string,
+  arbitreName: string
+): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    try {
+      const doc = new PDFDocument({ size: 'A4', margin: 45 });
+      const chunks: Buffer[] = [];
+
+      doc.on('data', (chunk) => chunks.push(chunk));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+
+      const sportLabel: Record<string, string> = {
+        futsal: 'Futsal',
+        basquet3x3: 'Basquet 3x3',
+        padel: 'Padel'
+      };
+      const incidentLabel: Record<string, string> = {
+        goal: 'Gol',
+        yellow_card: 'Targeta groga',
+        red_card: 'Targeta vermella',
+        '1pt': '1 punt',
+        '2pt': '2 punts',
+        foul: 'Falta',
+        timeout: 'Temps mort',
+        injury: 'Lesio',
+        substitution: 'Substitucio'
+      };
+
+      doc.fontSize(20).font('Helvetica-Bold').text('ACTA DE PARTIT', { align: 'center' });
+      doc.fontSize(10).font('Helvetica').text(`Partit ID: ${sheet.matchId}`, { align: 'center' });
+      doc.moveDown(1.5);
+
+      doc.fontSize(11).font('Helvetica-Bold').text('Dades del partit');
+      doc.moveTo(45, doc.y + 3).lineTo(550, doc.y + 3).strokeColor('#CCCCCC').stroke();
+      doc.moveDown(0.8);
+      doc.fontSize(10).font('Helvetica');
+      doc.text(`Esport: ${sportLabel[sheet.sport] || sheet.sport}`);
+      doc.text(`Arbitre: ${arbitreName}`);
+      doc.text(`Data: ${new Date(sheet.startTime).toLocaleDateString('ca-ES')}`);
+      doc.text(`Hora inici: ${new Date(sheet.startTime).toLocaleTimeString('ca-ES')}`);
+      if (sheet.endTime) {
+        doc.text(`Hora final: ${new Date(sheet.endTime).toLocaleTimeString('ca-ES')}`);
+      }
+      doc.moveDown(1.2);
+
+      doc.fontSize(11).font('Helvetica-Bold').text('Resultat');
+      doc.moveTo(45, doc.y + 3).lineTo(550, doc.y + 3).strokeColor('#CCCCCC').stroke();
+      doc.moveDown(0.8);
+      doc.fontSize(16).font('Helvetica-Bold').text(`${homeTeamName} ${sheet.homeScore} - ${sheet.awayScore} ${awayTeamName}`, {
+        align: 'center'
+      });
+      doc.moveDown(1.4);
+
+      doc.fontSize(11).font('Helvetica-Bold').text('Incidents');
+      doc.moveTo(45, doc.y + 3).lineTo(550, doc.y + 3).strokeColor('#CCCCCC').stroke();
+      doc.moveDown(0.8);
+      doc.fontSize(10).font('Helvetica');
+
+      if (sheet.incidents.length === 0) {
+        doc.text('Cap incident registrat');
+      } else {
+        sheet.incidents.forEach((incident, index) => {
+          if (incident.type === 'set_result') {
+            const padelInc = incident as IncidentPadel;
+            doc.text(`${index + 1}. Set ${padelInc.set_number}: ${homeTeamName} ${padelInc.home_score} - ${padelInc.away_score} ${awayTeamName}`);
+          } else {
+            const teamName = incident.teamId === sheet.homeTeamId ? homeTeamName : awayTeamName;
+            const minuteStr = incident.minute !== undefined ? `[${incident.minute}'] ` : '';
+            const playerName = incident.playerName ? `${incident.playerName} - ` : '';
+            doc.text(`${index + 1}. ${minuteStr}${playerName}${teamName} - ${incidentLabel[incident.type] || incident.type}`);
+          }
+        });
+      }
+
+      doc.moveDown(1.5);
       doc.fontSize(8).text('Generat per Campo Base', { align: 'center' });
 
       doc.end();

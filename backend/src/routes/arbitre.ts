@@ -261,8 +261,8 @@ router.post('/match/:matchId/sheet', verifyToken, requireRole(['arbitre']), asyn
       );
     } else {
       await query(
-        'INSERT INTO match_sheets (match_id, incidents, home_score, away_score, status) VALUES (?, ?, ?, ?, ?)',
-        [matchId, JSON.stringify(sheetData), sheetData.homeScore, sheetData.awayScore, 'actiu']
+        'INSERT INTO match_sheets (match_id, home_team_id, away_team_id, incidents, home_score, away_score, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [matchId, match.home_team_id, match.away_team_id, JSON.stringify(sheetData), sheetData.homeScore, sheetData.awayScore, 'actiu']
       );
     }
 
@@ -373,14 +373,22 @@ router.post('/match/:matchId/close', verifyToken, requireRole(['arbitre']), asyn
       }
     }
 
+    const matchTeamIds = await query(
+      'SELECT home_team_id, away_team_id FROM matches WHERE id = ?',
+      [matchId]
+    ) as any[];
+
+    const homeTeamId = sheet.home_team_id || sheetData.homeTeamId || matchTeamIds[0]?.home_team_id;
+    const awayTeamId = sheet.away_team_id || sheetData.awayTeamId || matchTeamIds[0]?.away_team_id;
+
     // Get team names
     const teams = await query(
       'SELECT id, name FROM teams WHERE id IN (?, ?)',
-      [sheet.home_team_id, sheet.away_team_id]
+      [homeTeamId, awayTeamId]
     ) as any[];
 
-    const homeTeamName = teams.find((t: any) => t.id === sheet.home_team_id)?.name || 'Home Team';
-    const awayTeamName = teams.find((t: any) => t.id === sheet.away_team_id)?.name || 'Away Team';
+    const homeTeamName = teams.find((t: any) => t.id === homeTeamId)?.name || 'Equip local';
+    const awayTeamName = teams.find((t: any) => t.id === awayTeamId)?.name || 'Equip visitant';
 
     // Get arbitre name
     const arbitres = await query(
@@ -395,8 +403,8 @@ router.post('/match/:matchId/close', verifyToken, requireRole(['arbitre']), asyn
       {
         id: sheet.id,
         matchId: parseInt(matchId),
-        homeTeamId: sheet.home_team_id,
-        awayTeamId: sheet.away_team_id,
+        homeTeamId,
+        awayTeamId,
         sport: sheetData.sport || 'futsal',
         homeScore: sheet.home_score || 0,
         awayScore: sheet.away_score || 0,
