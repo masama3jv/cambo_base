@@ -222,8 +222,8 @@ export default function ArbitreMatchSheet() {
         const result = await response.json();
         // Optimistic score update from POST response
         setSheetData(prev => prev ? { ...prev, homeScore: result.homeScore, awayScore: result.awayScore } : null);
-        // Full sync in background
-        fetchMatchData();
+        // Full sync (incidents log, lineups, etc.)
+        await fetchMatchData();
         setMessage(action === 'set_result' ? 'Set registrat' : action === 'substitution' ? 'Canvi registrat' : action + ' registrat');
         setTimeout(() => setMessage(''), 3000);
         setSelectedHomePlayer('');
@@ -501,7 +501,7 @@ export default function ArbitreMatchSheet() {
         {sport !== 'padel' && (
           <div className="bg-white rounded-lg shadow-md p-4 mb-4">
             <label className="text-sm font-bold text-gray-700 block mb-2 text-center">Minut Actual</label>
-            <input type="number" min="0" max={Math.max((matchInfo.match.match_duration_minutes || 40) + 10, 50)}
+            <input type="number" min="0" max={(matchInfo.match.match_duration_minutes || 40) + 10}
               value={minute}
               onChange={(e) => setMinute(parseInt(e.target.value) || 0)}
               className="w-full max-w-[150px] mx-auto block px-4 py-3 border-2 border-gray-300 rounded-lg text-center text-xl font-bold focus:border-[#D85A30] outline-none" />

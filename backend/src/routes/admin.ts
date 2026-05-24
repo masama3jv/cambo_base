@@ -188,7 +188,8 @@ router.get('/download-document/:documentId', async (req: AuthRequest, res) => {
       const decoded = jwt.verify(queryToken, process.env.JWT_SECRET || 'secret') as any;
       req.userId = decoded.id;
       req.userRole = decoded.role;
-    } catch {
+    } catch (e: any) {
+      console.error('Download-doc query-token verify error:', e?.message);
       return res.status(401).json({ error: 'Invalid token' });
     }
     if (req.userRole !== 'admin') {
@@ -204,7 +205,8 @@ router.get('/download-document/:documentId', async (req: AuthRequest, res) => {
       const decoded = jwt.verify(headerToken, process.env.JWT_SECRET || 'secret') as any;
       req.userId = decoded.id;
       req.userRole = decoded.role;
-    } catch {
+    } catch (e: any) {
+      console.error('Download-doc header-token verify error:', e?.message);
       return res.status(401).json({ error: 'Invalid token' });
     }
     if (req.userRole !== 'admin') {
