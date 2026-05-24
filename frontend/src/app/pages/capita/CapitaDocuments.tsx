@@ -64,7 +64,7 @@ export default function CapitaDocuments() {
         let players: { id: number; name: string }[] = data.players || [];
         if (players.length === 0 && tid) {
           try {
-            const pRes = await fetch(`${API_BASE_URL}/team/players?teamId=${tid}`, {
+            const pRes = await fetch(`${API_BASE_URL}/teams/${tid}/players`, {
               headers: { Authorization: `Bearer ${token}` }
             });
             if (pRes.ok) players = await pRes.json();
