@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
-import { Calendar, Trophy, ChevronDown, ChevronRight, MapPin, Clock, AlertCircle, CheckCircle, XCircle, Loader } from 'lucide-react';
+import { Calendar, Trophy, ChevronDown, ChevronRight, MapPin, Clock, AlertCircle, Loader, ArrowLeft, UserCheck } from 'lucide-react';
 import { API_BASE_URL } from '../../services/api';
 
 interface Tournament {
@@ -26,6 +26,13 @@ interface Match {
   status: string;
   home_score?: number;
   away_score?: number;
+  arbitre_id?: number;
+  arbitre_name?: string;
+}
+
+interface Referee {
+  id: number;
+  name: string;
 }
 
 const sportLabels: Record<string, string> = { futsal: 'Futbol Sala', basquet3x3: 'Bàsquet 3x3', padel: 'Pàdel' };
@@ -48,17 +55,24 @@ export default function AdminCalendar() {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [matchData, setMatchData] = useState<Record<number, Match[]>>({});
   const [loadingMatches, setLoadingMatches] = useState<Record<number, boolean>>({});
+  const [referees, setReferees] = useState<Referee[]>([]);
   const navigate = useNavigate();
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         const token = localStorage.getItem('token');
-        const res = await fetch(`${API_BASE_URL}/admin/tournaments`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (!res.ok) throw new Error();
-        setTournaments(await res.json());
+        const [tRes, rRes] = await Promise.all([
+          fetch(`${API_BASE_URL}/admin/tournaments`, {
+            headers: { Authorization: `Bearer ${token}` }
+          }),
+          fetch(`${API_BASE_URL}/admin/users?role=arbitre`, {
+            headers: { Authorization: `Bearer ${token}` }
+          })
+        ]);
+        if (!tRes.ok) throw new Error();
+        setTournaments(await tRes.json());
+        if (rRes.ok) setReferees(await rRes.json());
       } catch {
         setError('Error carregant torneigs');
       } finally {
@@ -67,6 +81,27 @@ export default function AdminCalendar() {
     };
     fetchData();
   }, []);
+
+  const assignReferee = async (matchId: number, arbitreId: number) => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_BASE_URL}/admin/matches/${matchId}/assign-referee`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ arbitreId })
+      });
+      if (res.ok && expandedId) {
+        const token2 = localStorage.getItem('token');
+        const mRes = await fetch(`${API_BASE_URL}/admin/tournaments/${expandedId}/matches`, {
+          headers: { Authorization: `Bearer ${token2}` }
+        });
+        if (mRes.ok) {
+          const data = await mRes.json();
+          setMatchData(prev => ({ ...prev, [expandedId]: data }));
+        }
+      }
+    } catch { /* ignore */ }
+  };
 
   const toggleExpand = async (id: number) => {
     if (expandedId === id) {
@@ -105,6 +140,9 @@ export default function AdminCalendar() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#FAECE7] to-white p-4">
       <div className="max-w-4xl mx-auto">
+        <button onClick={() => navigate('/admin')} className="flex items-center gap-2 text-[#5F5E5A] hover:text-[#D85A30] mb-4 transition-colors">
+          <ArrowLeft size={18} /> Tornar al dashboard
+        </button>
         <h1 className="text-3xl font-bold text-[#D85A30] mb-2">Calendaris</h1>
         <p className="text-gray-600 mb-8">Tots els torneigs i els seus partits</p>
 
@@ -155,24 +193,35 @@ export default function AdminCalendar() {
                     ) : (
                       <div className="divide-y divide-gray-50">
                         {matchData[t.id]?.map((m: Match) => (
-                          <div key={m.id} className="p-4 flex items-center justify-between hover:bg-gray-50">
-                            <div className="flex-1">
+                          <div key={m.id} className="p-4 hover:bg-gray-50">
+                            <div className="flex items-center justify-between mb-2">
                               <div className="font-medium text-gray-900">
                                 {m.home_team_name} vs {m.away_team_name}
                               </div>
-                              <div className="text-sm text-gray-500 mt-1 flex items-center gap-2">
-                                <Clock size={14} />{new Date(m.match_date).toLocaleString('ca-ES')}
-                                {m.court_name && <><span>·</span><MapPin size={14} />{m.court_name}</>}
-                              </div>
+                              <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusBadge(m.status)}`}>
+                                {m.status === 'finalitzat' ? 'Finalitzat' : m.status === 'en_curs' ? 'En curs' : m.status === 'pendent' ? 'Pendent' : m.status}
+                              </span>
+                            </div>
+                            <div className="text-sm text-gray-500 flex items-center gap-2 mb-2">
+                              <Clock size={14} />{new Date(m.match_date).toLocaleString('ca-ES')}
+                              {m.court_name && <><span>·</span><MapPin size={14} />{m.court_name}</>}
                               {m.status === 'finalitzat' && m.home_score !== undefined && (
-                                <div className="text-sm mt-1 font-medium text-gray-600">
-                                  {m.home_score} - {m.away_score}
-                                </div>
+                                <><span>·</span>{m.home_score} - {m.away_score}</>
                               )}
                             </div>
-                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusBadge(m.status)}`}>
-                              {m.status === 'finalitzat' ? 'Finalitzat' : m.status === 'en_curs' ? 'En curs' : m.status === 'pendent' ? 'Pendent' : m.status}
-                            </span>
+                            <div className="flex items-center gap-2 text-sm">
+                              <UserCheck size={14} className="text-gray-400" />
+                              <select
+                                value={m.arbitre_id || ''}
+                                onChange={(e) => assignReferee(m.id, parseInt(e.target.value))}
+                                className="text-sm border border-gray-200 rounded px-2 py-1 bg-white text-gray-700 focus:outline-none focus:border-[#D85A30]"
+                              >
+                                <option value="">Sense àrbitre</option>
+                                {referees.map(r => (
+                                  <option key={r.id} value={r.id}>{r.name}</option>
+                                ))}
+                              </select>
+                            </div>
                           </div>
                         ))}
                       </div>

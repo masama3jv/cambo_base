@@ -74,11 +74,13 @@ router.get('/tournaments/:id/matches', verifyToken, requireRole(['admin']), asyn
         m.*,
         t1.name as home_team_name,
         t2.name as away_team_name,
-        c.name as court_name
+        c.name as court_name,
+        ar.name as arbitre_name
       FROM matches m
       LEFT JOIN teams t1 ON m.home_team_id = t1.id
       LEFT JOIN teams t2 ON m.away_team_id = t2.id
       LEFT JOIN courts c ON m.court_id = c.id
+      LEFT JOIN users ar ON m.arbitre_id = ar.id
       WHERE m.tournament_id = ?
       ORDER BY m.match_date ASC
     `, [req.params.id]);
@@ -87,6 +89,21 @@ router.get('/tournaments/:id/matches', verifyToken, requireRole(['admin']), asyn
   } catch (error) {
     console.error('Error fetching tournament matches:', error);
     res.status(500).json({ error: 'Failed to fetch tournament matches' });
+  }
+});
+
+// POST /api/admin/matches/:id/assign-referee - Assign a referee to a match
+router.post('/matches/:id/assign-referee', verifyToken, requireRole(['admin']), async (req: AuthRequest, res) => {
+  try {
+    const { arbitreId } = req.body;
+    if (!arbitreId) {
+      return res.status(400).json({ error: 'Referee ID required' });
+    }
+    await query('UPDATE matches SET arbitre_id = ? WHERE id = ?', [arbitreId, req.params.id]);
+    res.json({ message: 'Àrbitre assignat correctament' });
+  } catch (error) {
+    console.error('Error assigning referee:', error);
+    res.status(500).json({ error: 'Failed to assign referee' });
   }
 });
 
