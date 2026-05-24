@@ -297,8 +297,7 @@ export default function ArbitreMatchSheet() {
   };
 
   if (loading) return <div className="p-4 text-center">Carregant...</div>;
-  if (error) return <div className="p-4 text-center text-red-600">{error}</div>;
-  if (!matchInfo || !sheetData) return <div className="p-4 text-center">Error carregant dades</div>;
+  if (!matchInfo || !sheetData) return <div className="p-4 text-center text-red-600">Error carregant dades</div>;
 
   const sport = sheetData.sport || 'futsal';
   const isClosed = sheetData.status === 'tancat' || sheetData.status === 'immutable';
