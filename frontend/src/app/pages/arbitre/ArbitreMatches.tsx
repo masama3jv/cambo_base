@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useParams, useNavigate } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router';
 import { Edit3, Clock, MapPin, AlertCircle, CheckCircle, Download, Lock, ArrowLeft } from 'lucide-react';
 import { API_BASE_URL } from '../../services/api';
 
