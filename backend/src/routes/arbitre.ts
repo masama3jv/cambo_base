@@ -171,8 +171,13 @@ router.post('/match/:matchId/sheet', verifyToken, requireRole(['arbitre']), asyn
     ) as any[];
 
     if (existing.length > 0) {
-      sheetData = JSON.parse(existing[0].incidents || '{}');
-      // Ensure proper structure
+      try {
+        sheetData = JSON.parse(existing[0].incidents || '{}');
+      } catch {
+        // Corrupt incidents data — reset to fresh sheet
+        console.warn('Reset corrupt match_sheet data for match', matchId);
+        sheetData = { matchId, homeTeamId: match.home_team_id, awayTeamId: match.away_team_id, sport: match.sport || 'futsal', homeScore: 0, awayScore: 0, status: 'actiu', incidents: [], startTime: new Date() };
+      }
       if (!sheetData.incidents) sheetData.incidents = [];
     }
 
@@ -307,7 +312,13 @@ router.get('/match/:matchId/sheet', verifyToken, requireRole(['arbitre']), async
     }
 
     const sheet = sheets[0];
-    const sheetData = JSON.parse(sheet.incidents || '{}');
+    let sheetData: any;
+    try {
+      sheetData = JSON.parse(sheet.incidents || '{}');
+    } catch {
+      console.warn('Reset corrupt match_sheet data (GET) for match', matchId);
+      sheetData = { homeScore: 0, awayScore: 0, sport: 'futsal', incidents: [] };
+    }
 
     // Ensure proper structure with DB values
     res.json({
@@ -344,7 +355,12 @@ router.post('/match/:matchId/close', verifyToken, requireRole(['arbitre']), asyn
     }
 
     const sheet = sheets[0];
-    const sheetData = JSON.parse(sheet.incidents || '{}');
+    let sheetData: any;
+    try {
+      sheetData = JSON.parse(sheet.incidents || '{}');
+    } catch {
+      sheetData = { homeScore: 0, awayScore: 0, sport: 'futsal', incidents: [] };
+    }
 
     // Get team names
     const teams = await query(
