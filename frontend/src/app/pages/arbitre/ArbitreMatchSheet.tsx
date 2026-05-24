@@ -219,9 +219,13 @@ export default function ArbitreMatchSheet() {
       });
 
       if (response.ok) {
-        await fetchMatchData();
+        const result = await response.json();
+        // Optimistic score update from POST response
+        setSheetData(prev => prev ? { ...prev, homeScore: result.homeScore, awayScore: result.awayScore } : null);
+        // Full sync in background
+        fetchMatchData();
         setMessage(action === 'set_result' ? 'Set registrat' : action === 'substitution' ? 'Canvi registrat' : action + ' registrat');
-        setTimeout(() => setMessage(''), 2000);
+        setTimeout(() => setMessage(''), 3000);
         setSelectedHomePlayer('');
         setSelectedAwayPlayer('');
       }
