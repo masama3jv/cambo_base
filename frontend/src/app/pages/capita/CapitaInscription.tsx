@@ -238,7 +238,16 @@ export default function CapitaInscription() {
 
           {!teamData.documentsReady && (
             <Card className="mb-6 bg-[#FFF4E6] border border-[#FFB84D]">
-              <p className="text-[#D85A30]">Falta documentació. Tots els documents (DNI, assegurança i drets d'imatge) han d'estar aprovats per l'administrador.</p>
+              <div className="flex items-start gap-3">
+                <AlertCircle size={20} className="text-[#D85A30] flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-[#D85A30] font-medium mb-2">Documentació pendent</p>
+                  <p className="text-[#5F5E5A] text-sm mb-3">Puja els documents (DNI, assegurança mèdica i drets d'imatge) de cada jugador des de la secció Documents.</p>
+                  <Button variant="secondary" size="sm" onClick={() => navigate('/documents')}>
+                    Anar a Documents
+                  </Button>
+                </div>
+              </div>
             </Card>
           )}
 
@@ -323,11 +332,16 @@ export default function CapitaInscription() {
                 <Card className="bg-[#FFF4E6] border border-[#FFB84D]">
                   <p className="text-[13px] text-[#5F5E5A]">
                     {teamData.status === 'pendent_docs'
-                      ? 'Esperant que l\'administrador validi els documents.'
+                      ? 'Puja els documents de cada jugador a la secció Documents.'
                       : teamData.status === 'pendent_pagament'
                       ? 'Error al carregar el formulari de pagament. Comprova que Stripe estigui configurat.'
                       : 'Els documents han d\'estar aprovats per poder pagar.'}
                   </p>
+                  {teamData.status === 'pendent_docs' && (
+                    <Button variant="secondary" size="sm" className="mt-3" onClick={() => navigate('/documents')}>
+                      Anar a Documents
+                    </Button>
+                  )}
                 </Card>
               )}
             </Card>
