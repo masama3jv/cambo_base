@@ -190,17 +190,12 @@ export default function ArbitreMatches() {
                           <Download size={18} />
                           {downloading === match.id ? 'Descarregant...' : 'PDF'}
                         </button>
-                      ) : match.status !== 'pendent' ? (
+                      ) : (
                         <Link to={`/arbitre/match/${match.id}`}
                           className="flex-1 sm:flex-none px-6 py-3 bg-[#D85A30] hover:bg-[#C24620] text-white rounded-lg font-semibold text-sm flex items-center justify-center gap-2 transition">
                           <Edit3 size={18} />
                           <span>Acta</span>
                         </Link>
-                      ) : (
-                        <button disabled
-                          className="flex-1 sm:flex-none px-6 py-3 bg-gray-200 text-gray-500 rounded-lg font-semibold text-sm cursor-not-allowed">
-                          Pendent
-                        </button>
                       )}
                     </div>
                   </div>
