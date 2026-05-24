@@ -341,7 +341,7 @@ router.post('/upload-document', verifyToken, upload.single('file'), async (req: 
       
       // Update existing document
       await query(
-        'UPDATE documents SET file_path = ?, file_data = ?, status = ?, updated_at = NOW() WHERE team_id = ? AND user_id = ? AND document_type = ?',
+        'UPDATE documents SET file_path = ?, file_data = ?, status = ? WHERE team_id = ? AND user_id = ? AND document_type = ?',
         [relativePath, fileData, 'pendent', teamId, userId, documentType]
       );
     } else {
