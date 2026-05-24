@@ -120,6 +120,14 @@ async function runMigrations() {
   } catch (err: any) {
     console.warn('Migration note (non-fatal) 9:', err.message);
   }
+  try {
+    await pool.execute("ALTER TABLE documents ADD COLUMN file_data LONGTEXT NULL AFTER file_path");
+    console.log('✓ Migration: documents.file_data added');
+  } catch (err: any) {
+    if (err.code !== 'ER_DUP_FIELDNAME' && !err.message?.includes('Duplicate column')) {
+      console.warn('Migration note (non-fatal) 10:', err.message);
+    }
+  }
 }
 
 export async function getConnection(): Promise<mysql.PoolConnection> {

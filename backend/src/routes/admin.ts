@@ -181,7 +181,6 @@ router.get('/inscriptions/:teamId', verifyToken, requireRole(['admin']), async (
 // GET /api/admin/download-document/:documentId - Admin downloads a document
 // Also accepts ?token= for direct link access from browser
 router.get('/download-document/:documentId', async (req: AuthRequest, res) => {
-  // Allow token via query param for direct links
   const queryToken = req.query.token as string;
   if (queryToken) {
     try {
@@ -196,7 +195,6 @@ router.get('/download-document/:documentId', async (req: AuthRequest, res) => {
       return res.status(403).json({ error: 'Admin access required' });
     }
   } else {
-    // Fall back to header-based auth
     const headerToken = req.headers.authorization?.replace('Bearer ', '');
     if (!headerToken) {
       return res.status(401).json({ error: 'No token provided' });
@@ -213,16 +211,31 @@ router.get('/download-document/:documentId', async (req: AuthRequest, res) => {
       return res.status(403).json({ error: 'Admin access required' });
     }
   }
+
   try {
     const docs = await query('SELECT * FROM documents WHERE id = ?', [req.params.documentId]) as any[];
     if (docs.length === 0) {
       return res.status(404).json({ error: 'Document not found' });
     }
-    const filePath = path.join(process.cwd(), docs[0].file_path);
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ error: 'File not found' });
+    const doc = docs[0];
+    // Try to serve from file_data (DB) first, fall back to disk
+    if (doc.file_data) {
+      const buf = Buffer.from(doc.file_data, 'base64');
+      res.writeHead(200, {
+        'Content-Type': doc.file_path?.endsWith('.pdf') ? 'application/pdf' :
+                        doc.file_path?.endsWith('.png') ? 'image/png' :
+                        doc.file_path?.endsWith('.jpg') || doc.file_path?.endsWith('.jpeg') ? 'image/jpeg' : 'application/octet-stream',
+        'Content-Length': buf.length,
+        'Content-Disposition': `inline; filename="${path.basename(doc.file_path || 'document')}"`
+      });
+      res.end(buf);
+      return;
     }
-    res.sendFile(filePath);
+    const filePath = path.resolve(doc.file_path);
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: 'File not available (uploaded file no longer exists on server)' });
+    }
+    res.download(filePath);
   } catch (error) {
     console.error('Error downloading document:', error);
     res.status(500).json({ error: 'Failed to download document' });

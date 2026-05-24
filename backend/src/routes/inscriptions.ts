@@ -318,6 +318,11 @@ router.post('/upload-document', verifyToken, upload.single('file'), async (req: 
       return res.status(403).json({ error: 'User is not part of this team' });
     }
 
+    // Read file content as base64 for persistent storage
+    const fileBuffer = fs.readFileSync(req.file.path);
+    const fileData = fileBuffer.toString('base64');
+    const mimeType = req.file.mimetype;
+
     // Relative path for database storage (e.g., "documents/userId_docType_timestamp.pdf")
     const relativePath = path.relative(path.join(process.cwd()), req.file.path).replace(/\\/g, '/');
 
@@ -336,14 +341,14 @@ router.post('/upload-document', verifyToken, upload.single('file'), async (req: 
       
       // Update existing document
       await query(
-        'UPDATE documents SET file_path = ?, status = ?, updated_at = NOW() WHERE team_id = ? AND user_id = ? AND document_type = ?',
-        [relativePath, 'pendent', teamId, userId, documentType]
+        'UPDATE documents SET file_path = ?, file_data = ?, status = ?, updated_at = NOW() WHERE team_id = ? AND user_id = ? AND document_type = ?',
+        [relativePath, fileData, 'pendent', teamId, userId, documentType]
       );
     } else {
       // Create new document
       await query(
-        'INSERT INTO documents (team_id, user_id, document_type, file_path, status, created_at) VALUES (?, ?, ?, ?, ?, NOW())',
-        [teamId, userId, documentType, relativePath, 'pendent']
+        'INSERT INTO documents (team_id, user_id, document_type, file_path, file_data, status, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())',
+        [teamId, userId, documentType, relativePath, fileData, 'pendent']
       );
     }
 
