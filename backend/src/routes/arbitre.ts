@@ -223,6 +223,10 @@ router.post('/match/:matchId/sheet', verifyToken, requireRole(['arbitre']), asyn
         type: 'timeout', minute: data.minute || 0, teamId: data.teamId, timestamp: new Date()
       });
     } else if (action === 'set_result') {
+      sheetData.homeScore = sheetData.homeScore || 0;
+      sheetData.awayScore = sheetData.awayScore || 0;
+      if (data.home_score > data.away_score) sheetData.homeScore++;
+      else if (data.away_score > data.home_score) sheetData.awayScore++;
       sheetData.incidents.push({
         type: 'set_result', set_number: data.set_number, home_score: data.home_score, away_score: data.away_score, timestamp: new Date()
       });

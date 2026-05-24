@@ -509,20 +509,22 @@ export default function ArbitreMatchSheet() {
         <div className="bg-white rounded-lg shadow-md p-4 mb-4">
           {sport === 'padel' ? (
             <div className="space-y-6">
-              <h2 className="font-bold text-gray-800 text-center border-b pb-2">Registrar Nou Set</h2>
+              <h2 className="font-bold text-gray-800 text-center border-b pb-2">Registrar Set</h2>
               <div className="flex items-center justify-between gap-6 max-w-sm mx-auto">
                 <div className="flex-1 text-center">
-                  <p className="text-xs font-medium text-gray-500 mb-2 truncate">{matchInfo.match.home_team_name}</p>
+                  <p className="text-xs font-medium text-gray-500 mb-2">{matchInfo.match.home_team_name}</p>
                   <input type="number" min="0" max="7" value={padelHomeScore}
                     onChange={(e) => setPadelHomeScore(parseInt(e.target.value) || 0)}
                     className="w-full text-center py-4 border-2 rounded-xl text-3xl font-bold" />
+                  <p className="text-[10px] text-gray-400 mt-1">Jocs</p>
                 </div>
                 <div className="text-gray-300 font-bold text-2xl">-</div>
                 <div className="flex-1 text-center">
-                  <p className="text-xs font-medium text-gray-500 mb-2 truncate">{matchInfo.match.away_team_name}</p>
+                  <p className="text-xs font-medium text-gray-500 mb-2">{matchInfo.match.away_team_name}</p>
                   <input type="number" min="0" max="7" value={padelAwayScore}
                     onChange={(e) => setPadelAwayScore(parseInt(e.target.value) || 0)}
                     className="w-full text-center py-4 border-2 rounded-xl text-3xl font-bold" />
+                  <p className="text-[10px] text-gray-400 mt-1">Jocs</p>
                 </div>
               </div>
               <button onClick={() => {
@@ -534,10 +536,6 @@ export default function ArbitreMatchSheet() {
               }}
                 className="w-full bg-green-500 hover:bg-green-600 text-white py-4 rounded-xl font-bold text-lg shadow-sm">
                 Afegir Set {sheetData.incidents.filter(i => i.type === 'set_result').length + 1}
-              </button>
-              <button onClick={() => recordIncident('timeout', 0)}
-                className="w-full bg-purple-500 hover:bg-purple-600 text-white py-3 rounded-xl font-bold shadow-sm">
-                Timeout
               </button>
             </div>
           ) : (
