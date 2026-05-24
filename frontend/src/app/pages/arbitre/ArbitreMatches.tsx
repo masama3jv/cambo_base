@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router';
-import { Edit3, Clock, MapPin, AlertCircle, CheckCircle, Download, Lock, ArrowLeft, LogOut } from 'lucide-react';
+import { Edit3, Clock, MapPin, AlertCircle, CheckCircle, Download, Lock, ArrowLeft } from 'lucide-react';
 import { API_BASE_URL } from '../../services/api';
-import { useAuth } from '../../context/AuthContext';
 
 interface Match {
   id: number;
@@ -19,7 +18,6 @@ interface Match {
 export default function ArbitreMatches() {
   const { tournamentId } = useParams();
   const navigate = useNavigate();
-  const { logout } = useAuth();
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -129,21 +127,16 @@ export default function ArbitreMatches() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#FAECE7] to-white p-4">
       <div className="max-w-4xl mx-auto">
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex-1">
-            {tournamentId && (
-              <button onClick={() => navigate('/arbitre/partits')} className="flex items-center gap-2 text-[#5F5E5A] hover:text-[#D85A30] mb-4 transition-colors">
-                <ArrowLeft size={18} /> Tots els torneigs
-              </button>
-            )}
-            <h1 className="text-3xl font-bold text-[#D85A30] mb-2">
-              {tournamentName || 'Els meus partits'}
-            </h1>
-            <p className="text-gray-600">Total: {matches.length} partits</p>
-          </div>
-          <button onClick={() => { logout(); navigate('/'); }} className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-            <LogOut size={18} /> Tancar sessió
-          </button>
+        <div className="mb-4">
+          {tournamentId && (
+            <button onClick={() => navigate('/arbitre/partits')} className="flex items-center gap-2 text-[#5F5E5A] hover:text-[#D85A30] mb-4 transition-colors">
+              <ArrowLeft size={18} /> Tots els torneigs
+            </button>
+          )}
+          <h1 className="text-3xl font-bold text-[#D85A30] mb-2">
+            {tournamentName || 'Els meus partits'}
+          </h1>
+          <p className="text-gray-600">Total: {matches.length} partits</p>
         </div>
 
         {matches.length === 0 ? (

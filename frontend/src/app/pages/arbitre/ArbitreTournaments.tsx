@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
-import { Calendar, Trophy, ChevronRight, AlertCircle } from 'lucide-react';
+import { Calendar, Trophy, ChevronRight, AlertCircle, LogOut } from 'lucide-react';
 import { API_BASE_URL } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 
 interface Tournament {
   id: number;
@@ -21,6 +22,7 @@ export default function ArbitreTournaments() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const { logout } = useAuth();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -51,8 +53,15 @@ export default function ArbitreTournaments() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#FAECE7] to-white p-4">
       <div className="max-w-3xl mx-auto">
-        <h1 className="text-3xl font-bold text-[#D85A30] mb-2">Els meus torneigs</h1>
-        <p className="text-gray-600 mb-8">Selecciona un torneig per veure els partits assignats</p>
+        <div className="flex items-start justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-[#D85A30] mb-2">Els meus torneigs</h1>
+            <p className="text-gray-600">Selecciona un torneig per veure els partits assignats</p>
+          </div>
+          <button onClick={() => { logout(); navigate('/'); }} className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+            <LogOut size={18} /> Tancar sessió
+          </button>
+        </div>
 
         {error && (
           <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-800 mb-6">
