@@ -216,13 +216,15 @@ router.get('/documents', verifyToken, async (req: AuthRequest, res) => {
     
     // Get team players count (including captain)
     const players = await query(`
-      SELECT COUNT(*) as count FROM team_players
-      WHERE team_id = ?
+      SELECT tp.user_id as id, u.name FROM team_players tp
+      JOIN users u ON tp.user_id = u.id
+      WHERE tp.team_id = ?
     `, [teamId]) as any[];
 
-    if (players.length > 0 && players[0].count === 0) {
+    if (players.length === 0) {
       return res.status(200).json({
         documents: [],
+        players: [],
         noTeam: false,
         noPlayers: true,
         message: 'Afegeix jugadors abans de pujar documents'
@@ -247,6 +249,7 @@ router.get('/documents', verifyToken, async (req: AuthRequest, res) => {
 
     res.status(200).json({
       documents: documents || [],
+      players,
       noTeam: false,
       noPlayers: false
     });

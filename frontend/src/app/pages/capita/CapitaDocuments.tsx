@@ -34,12 +34,6 @@ export default function CapitaDocuments() {
     image_rights: 'Drets d\'imatge',
   };
 
-  const DOC_MAP: Record<string, string> = {
-    'DNI': 'dni',
-    'Assegurança mèdica': 'asseguranca',
-    'Drets d\'imatge': 'image_rights',
-  };
-
   const fetchPlayerDocuments = async () => {
     try {
       setIsLoading(true);
@@ -67,24 +61,24 @@ export default function CapitaDocuments() {
         setDocuments([]);
       } else {
         // Ensure each player has 3 document slots (dni, asseguranca, image_rights)
-        const docs = data.documents || [];
+        const docs: Document[] = data.documents || [];
+        const players: { id: number; name: string }[] = data.players || [];
         const allTypes = ['dni', 'asseguranca', 'image_rights'];
-        // Group by player
-        const byPlayer: Record<number, { userId: number; name: string; types: Set<string> }> = {};
-        docs.forEach((d: Document) => {
-          if (!byPlayer[d.user_id]) {
-            byPlayer[d.user_id] = { userId: d.user_id, name: d.name, types: new Set() };
-          }
-          byPlayer[d.user_id].types.add(d.document_type);
+        // Build map of user_id -> set of document types they have
+        const uploadedByUser: Record<number, Set<string>> = {};
+        docs.forEach(d => {
+          if (!uploadedByUser[d.user_id]) uploadedByUser[d.user_id] = new Set();
+          uploadedByUser[d.user_id].add(d.document_type);
         });
-        // Add missing document slots for each player
+        // Create empty slots for each player for missing types
         const filled = [...docs];
-        Object.values(byPlayer).forEach(p => {
+        players.forEach(p => {
+          const existing = uploadedByUser[p.id] || new Set();
           allTypes.forEach(t => {
-            if (!p.types.has(t)) {
+            if (!existing.has(t)) {
               filled.push({
-                id: -(p.userId * 10 + allTypes.indexOf(t)), // negative id to avoid conflicts
-                user_id: p.userId,
+                id: -(p.id * 10 + allTypes.indexOf(t)),
+                user_id: p.id,
                 name: p.name,
                 document_type: t,
                 status: 'pendent',
