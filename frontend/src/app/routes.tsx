@@ -10,7 +10,6 @@ import CapitaInscription from "./pages/capita/CapitaInscription";
 import CapitaTeam from "./pages/capita/CapitaTeam";
 import CapitaCalendar from "./pages/capita/CapitaCalendar";
 import CapitaStatistics from "./pages/capita/CapitaStatistics";
-import CapitaNotifications from "./pages/capita/CapitaNotifications";
 import JugadorDashboard from "./pages/jugador/JugadorDashboard";
 import JugadorCalendar from "./pages/jugador/JugadorCalendar";
 import JugadorStats from "./pages/jugador/JugadorStats";
@@ -50,10 +49,6 @@ export const router = createBrowserRouter([
   {
     path: "/stats",
     element: <ProtectedRoute allowedRoles={['capita']}><CapitaStatistics /></ProtectedRoute>,
-  },
-  {
-    path: "/notifications",
-    element: <ProtectedRoute allowedRoles={['capita']}><CapitaNotifications /></ProtectedRoute>,
   },
   {
     path: "/documents",

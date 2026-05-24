@@ -1,20 +1,11 @@
 import express, { Router } from 'express';
+import path from 'path';
+import fs from 'fs';
 import { query } from '../db/connection.js';
 import { verifyToken, AuthRequest, requireRole } from '../middleware/auth.js';
 import { generateCalendar, saveMatchesToDatabase } from '../services/calendarService.js';
 
 const router: Router = express.Router();
-
-async function createNotification(userId: number, type: string, title: string, message: string, teamId?: number, documentId?: number) {
-  try {
-    await query(
-      'INSERT INTO notifications (user_id, type, title, message, related_team_id, related_document_id) VALUES (?, ?, ?, ?, ?, ?)',
-      [userId, type, title, message, teamId || null, documentId || null]
-    );
-  } catch (err) {
-    console.warn('Failed to create notification:', err);
-  }
-}
 
 // GET /api/admin/dashboard - Get admin dashboard
 router.get('/dashboard', verifyToken, requireRole(['admin']), async (req: AuthRequest, res) => {
@@ -164,7 +155,7 @@ router.get('/inscriptions/:teamId', verifyToken, requireRole(['admin']), async (
         u.name,
         u.email,
         GROUP_CONCAT(
-          JSON_OBJECT('type', d.document_type, 'status', d.status, 'id', d.id, 'rejection_reason', d.rejection_reason)
+          JSON_OBJECT('type', d.document_type, 'status', d.status, 'id', d.id, 'file_path', d.file_path, 'rejection_reason', d.rejection_reason)
           SEPARATOR ','
         ) as documents
       FROM team_players tp
@@ -184,6 +175,24 @@ router.get('/inscriptions/:teamId', verifyToken, requireRole(['admin']), async (
   } catch (error) {
     console.error('Error fetching team documents:', error);
     res.status(500).json({ error: 'Failed to fetch documents' });
+  }
+});
+
+// GET /api/admin/download-document/:documentId - Admin downloads a document
+router.get('/download-document/:documentId', verifyToken, requireRole(['admin']), async (req: AuthRequest, res) => {
+  try {
+    const docs = await query('SELECT * FROM documents WHERE id = ?', [req.params.documentId]) as any[];
+    if (docs.length === 0) {
+      return res.status(404).json({ error: 'Document not found' });
+    }
+    const filePath = path.join(process.cwd(), docs[0].file_path);
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+    res.sendFile(filePath);
+  } catch (error) {
+    console.error('Error downloading document:', error);
+    res.status(500).json({ error: 'Failed to download document' });
   }
 });
 
@@ -366,13 +375,6 @@ router.post('/inscriptions/:teamId/approve-document', verifyToken, requireRole([
       await query('UPDATE teams SET status = ? WHERE id = ?', ['pendent_pagament', teamId]);
     }
 
-    // Notify the document owner
-    const docInfo = await query('SELECT user_id FROM documents WHERE id = ?', [documentId]) as any[];
-    if (docInfo.length > 0) {
-      await createNotification(docInfo[0].user_id, 'document_approved', 'Document aprovat',
-        'El teu document ha estat aprovat per l\'administrador.', parseInt(teamId), parseInt(documentId));
-    }
-
     res.json({ message: 'Document approved' });
   } catch (error) {
     console.error('Error approving document:', error);
@@ -395,17 +397,21 @@ router.post('/inscriptions/:teamId/reject-document', verifyToken, requireRole(['
       ['rebutjat', reason || 'No reason provided', documentId, teamId]
     );
 
-    // Notify the document owner
-    const docInfo = await query('SELECT user_id FROM documents WHERE id = ?', [documentId]) as any[];
-    if (docInfo.length > 0) {
-      await createNotification(docInfo[0].user_id, 'document_rejected', 'Document denegat',
-        `El teu document ha estat denegat. Motiu: ${reason || 'No especificat'}`, parseInt(teamId), parseInt(documentId));
-    }
-
     res.json({ message: 'Document rejected' });
   } catch (error) {
     console.error('Error rejecting document:', error);
     res.status(500).json({ error: 'Failed to reject document' });
+  }
+});
+
+// GET /api/admin/inscrit-teams - Get teams eligible for tournament (status = inscrit)
+router.get('/inscrit-teams', verifyToken, requireRole(['admin']), async (req: AuthRequest, res) => {
+  try {
+    const teams = await query(`SELECT id, name, sport FROM teams WHERE status = 'inscrit' ORDER BY name`);
+    res.json(teams);
+  } catch (error) {
+    console.error('Error fetching inscrit teams:', error);
+    res.status(500).json({ error: 'Failed to fetch teams' });
   }
 });
 
@@ -425,17 +431,22 @@ router.post('/generate-calendar', verifyToken, requireRole(['admin']), async (re
       winPoints,
       drawPoints,
       lossPoints,
-      tiebreaker
+      tiebreaker,
+      teamIds
     } = req.body;
 
     if (!format || !startDate || !endDate || !matchDurationMinutes || !courtNames || courtNames.length === 0) {
       return res.status(400).json({ error: 'Missing required fields: format, startDate, endDate, matchDurationMinutes, courts' });
     }
 
-    // Get all inscribed teams (those who have paid)
-    const teams = await query(`
-      SELECT id, name FROM teams WHERE status = 'inscrit'
-    `) as any[];
+    // Get selected teams (or all inscrit if not specified)
+    let teams: any[];
+    if (teamIds && teamIds.length > 0) {
+      const placeholders = teamIds.map(() => '?').join(',');
+      teams = await query(`SELECT id, name FROM teams WHERE id IN (${placeholders})`, teamIds) as any[];
+    } else {
+      teams = await query(`SELECT id, name FROM teams WHERE status = 'inscrit'`) as any[];
+    }
 
     if (teams.length < 2) {
       return res.status(400).json({ error: 'Need at least 2 teams to generate calendar' });
@@ -489,15 +500,6 @@ router.post('/generate-calendar', verifyToken, requireRole(['admin']), async (re
       'UPDATE teams SET status = ? WHERE status = ?',
       ['actiu', 'inscrit']
     );
-
-    // Notify all activated teams
-    for (const team of teams) {
-      const capita = await query('SELECT capita_id FROM teams WHERE id = ?', [team.id]) as any[];
-      if (capita.length > 0) {
-        await createNotification(capita[0].capita_id, 'calendar_published', 'Calendari publicat!',
-          `El calendari del torneig "${tournamentNameStr}" ja està disponible.`, team.id);
-      }
-    }
 
     // Update tournament status to 'generat'
     await query(

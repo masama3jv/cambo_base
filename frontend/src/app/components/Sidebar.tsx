@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router';
-import { Home, Users, FileText, ClipboardList, Calendar, BarChart3, Bell, Settings, LogOut, Trophy } from 'lucide-react';
+import { Home, Users, FileText, ClipboardList, Calendar, BarChart3, Settings, LogOut, Trophy } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 interface SidebarProps {
@@ -18,7 +18,7 @@ export function Sidebar({ role }: SidebarProps) {
     { path: '/inscription', label: 'Inscripció', icon: ClipboardList },
     { path: '/calendar', label: 'Calendari', icon: Calendar },
     { path: '/stats', label: 'Estadístiques', icon: BarChart3 },
-    { path: '/notifications', label: 'Notificacions', icon: Bell },
+
   ];
 
   const jugadorLinks = [

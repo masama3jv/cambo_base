@@ -245,36 +245,4 @@ router.get('/team/statistics', verifyToken, async (req: AuthRequest, res) => {
   }
 });
 
-// GET /api/notifications - Get user notifications
-router.get('/notifications', verifyToken, async (req: AuthRequest, res) => {
-  try {
-    const notifications = await query(`
-      SELECT 
-        id,
-        type,
-        title,
-        message,
-        is_read,
-        created_at
-      FROM notifications
-      WHERE user_id = ?
-      ORDER BY created_at DESC
-      LIMIT 50
-    `, [req.userId]) as any[];
-
-    res.json({
-      notifications: notifications || [],
-      total: notifications ? notifications.length : 0,
-      unread: notifications ? notifications.filter((n: any) => !n.is_read).length : 0
-    });
-  } catch (error) {
-    console.error('Error fetching notifications:', error);
-    res.json({
-      notifications: [],
-      total: 0,
-      unread: 0
-    });
-  }
-});
-
 export default router;

@@ -13,16 +13,18 @@ export default function AdminConfigurator() {
 
   const steps = [
     { number: 1, label: 'Instal·lacions' },
-    { number: 2, label: 'Estructura' },
+    { number: 2, label: 'Equips i estructura' },
     { number: 3, label: 'Puntuació' },
     { number: 4, label: 'Temps' },
   ];
 
+  const [availableTeams, setAvailableTeams] = useState<{ id: number; name: string }[]>([]);
   const [formData, setFormData] = useState({
     tournamentName: '',
     sport: 'futsal',
     numCourts: 2,
     courts: [{ name: 'Pista 1' as string, location: 'Pavellò A' as string }, { name: 'Pista 2' as string, location: 'Pavellò A' as string }],
+    selectedTeamIds: [] as number[],
     format: 'mixt' as string,
     teamsPerGroup: 4,
     winPoints: 3, drawPoints: 1, lossPoints: 0,
@@ -62,6 +64,7 @@ export default function AdminConfigurator() {
           drawPoints: formData.drawPoints,
           lossPoints: formData.lossPoints,
           tiebreaker: formData.tiebreaker,
+          teamIds: formData.selectedTeamIds,
         }),
       });
 
@@ -96,6 +99,27 @@ export default function AdminConfigurator() {
       return { ...prev, courts: current.slice(0, target) };
     });
   }, [formData.numCourts]);
+
+  // Fetch available teams when step 2 is shown
+  useEffect(() => {
+    if (currentStep === 2 && availableTeams.length === 0) {
+      const fetchTeams = async () => {
+        try {
+          const token = localStorage.getItem('token');
+          const res = await fetch(`${API_BASE_URL}/admin/inscrit-teams`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          if (res.ok) {
+            const teams = await res.json();
+            setAvailableTeams(teams);
+            // Pre-select all teams
+            setFormData(prev => ({ ...prev, selectedTeamIds: teams.map((t: any) => t.id) }));
+          }
+        } catch { /* ignore */ }
+      };
+      fetchTeams();
+    }
+  }, [currentStep]);
 
   const formatLabels: Record<string, string> = {
     lliga: 'Lliga', grups: 'Grups', eliminatoria: 'Eliminatòria', mixt: 'Mixt'
@@ -193,7 +217,28 @@ export default function AdminConfigurator() {
             {/* Step 2 */}
             {currentStep === 2 && (
               <div>
-                <h3 className="mb-6">Estructura del torneig</h3>
+                <h3 className="mb-6">Selecciona els equips del torneig</h3>
+                {availableTeams.length === 0 ? (
+                  <p className="text-gray-500">No hi ha equips inscrits disponibles</p>
+                ) : (
+                  <div className="space-y-2 mb-8 max-h-64 overflow-y-auto">
+                    {availableTeams.map(t => {
+                      const checked = formData.selectedTeamIds.includes(t.id);
+                      return (
+                        <label key={t.id} className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${checked ? 'border-[#D85A30] bg-[#FAECE7]' : 'border-[#D3D1C7] hover:bg-[#F1EFE8]'}`}>
+                          <input type="checkbox" checked={checked}
+                            onChange={() => setFormData(prev => ({
+                              ...prev,
+                              selectedTeamIds: checked ? prev.selectedTeamIds.filter(id => id !== t.id) : [...prev.selectedTeamIds, t.id]
+                            }))}
+                            className="w-4 h-4 accent-[#D85A30]" />
+                          <span className="text-sm font-medium text-gray-800">{t.name}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+                <h3 className="mb-6">Format del torneig</h3>
                 <div className="space-y-6">
                   <div>
                     <label className="block mb-3">Format del torneig</label>
