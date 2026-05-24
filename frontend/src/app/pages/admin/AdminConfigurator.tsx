@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Sidebar } from '../../components/Sidebar';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
@@ -79,6 +79,23 @@ export default function AdminConfigurator() {
       setIsLoading(false);
     }
   };
+
+  // Sync courts array with numCourts
+  useEffect(() => {
+    setFormData(prev => {
+      const current = prev.courts;
+      const target = prev.numCourts;
+      if (current.length === target) return prev;
+      if (current.length < target) {
+        const added = Array.from({ length: target - current.length }, (_, i) => ({
+          name: `Pista ${current.length + i + 1}`,
+          location: 'Pavellò A'
+        }));
+        return { ...prev, courts: [...current, ...added] };
+      }
+      return { ...prev, courts: current.slice(0, target) };
+    });
+  }, [formData.numCourts]);
 
   const formatLabels: Record<string, string> = {
     lliga: 'Lliga', grups: 'Grups', eliminatoria: 'Eliminatòria', mixt: 'Mixt'

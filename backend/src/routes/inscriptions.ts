@@ -214,11 +214,11 @@ router.get('/documents', verifyToken, async (req: AuthRequest, res) => {
 
     const teamId = teams[0].id;
     
-    // Get team players count
+    // Get team players count (including captain)
     const players = await query(`
       SELECT COUNT(*) as count FROM team_players
-      WHERE team_id = ? AND user_id != ?
-    `, [teamId, req.userId]) as any[];
+      WHERE team_id = ?
+    `, [teamId]) as any[];
 
     if (players.length > 0 && players[0].count === 0) {
       return res.status(200).json({
