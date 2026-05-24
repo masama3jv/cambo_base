@@ -179,7 +179,40 @@ router.get('/inscriptions/:teamId', verifyToken, requireRole(['admin']), async (
 });
 
 // GET /api/admin/download-document/:documentId - Admin downloads a document
-router.get('/download-document/:documentId', verifyToken, requireRole(['admin']), async (req: AuthRequest, res) => {
+// Also accepts ?token= for direct link access from browser
+router.get('/download-document/:documentId', async (req: AuthRequest, res) => {
+  // Allow token via query param for direct links
+  const queryToken = req.query.token as string;
+  if (queryToken) {
+    try {
+      const jwt = await import('jsonwebtoken');
+      const decoded = jwt.verify(queryToken, process.env.JWT_SECRET || 'default-secret') as any;
+      req.userId = decoded.userId;
+      req.userRole = decoded.role;
+    } catch {
+      return res.status(401).json({ error: 'Invalid token' });
+    }
+    if (req.userRole !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+  } else {
+    // Fall back to header-based auth
+    const headerToken = req.headers.authorization?.replace('Bearer ', '');
+    if (!headerToken) {
+      return res.status(401).json({ error: 'No token provided' });
+    }
+    try {
+      const jwt = await import('jsonwebtoken');
+      const decoded = jwt.verify(headerToken, process.env.JWT_SECRET || 'default-secret') as any;
+      req.userId = decoded.userId;
+      req.userRole = decoded.role;
+    } catch {
+      return res.status(401).json({ error: 'Invalid token' });
+    }
+    if (req.userRole !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+  }
   try {
     const docs = await query('SELECT * FROM documents WHERE id = ?', [req.params.documentId]) as any[];
     if (docs.length === 0) {

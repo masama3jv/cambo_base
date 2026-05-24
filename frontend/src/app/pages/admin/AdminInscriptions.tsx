@@ -207,10 +207,13 @@ export default function AdminInscriptions() {
                           </div>
                           <div className="flex gap-2">
                             {doc.id && (
-                              <a href={`${API_BASE_URL}/admin/download-document/${doc.id}`} target="_blank" rel="noopener noreferrer"
+                              <button onClick={() => {
+                                const token = localStorage.getItem('token');
+                                window.open(`${API_BASE_URL}/admin/download-document/${doc.id}?token=${token}`, '_blank');
+                              }}
                                 className="inline-flex items-center text-sm px-3 py-1.5 rounded-lg border border-[#D3D1C7] text-[#5F5E5A] hover:bg-[#F1EFE8] transition">
                                 <FileText size={14} className="mr-1" /> Veure
-                              </a>
+                              </button>
                             )}
                             {doc.status !== 'aprovat' && doc.id && (
                               <Button variant="primary" className="text-sm px-3 py-1.5" onClick={() => handleApproveDoc(player.id, doc.type)}>
