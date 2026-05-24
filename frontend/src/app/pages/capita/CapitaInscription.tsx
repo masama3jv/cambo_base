@@ -21,10 +21,33 @@ interface InscriptionData {
   documentsReady: boolean;
 }
 
+const isInscribedStatus = (status?: string) => status === 'inscrit' || status === 'actiu';
+
 function PaymentForm({ teamId, amount, onSuccess, onError }: { teamId: number; amount: number; onSuccess: () => void; onError: (msg: string) => void }) {
   const stripe = useStripe();
   const elements = useElements();
   const [processing, setProcessing] = useState(false);
+
+  const waitForBackendInscription = async () => {
+    const token = localStorage.getItem('token');
+    for (let attempt = 0; attempt < 5; attempt++) {
+      try {
+        const res = await fetch(`${API_BASE_URL}/team/inscription-data`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (isInscribedStatus(data.teamData?.status)) {
+            return true;
+          }
+        }
+      } catch {
+        // Retry briefly because Stripe webhooks and backend updates can finish a moment later.
+      }
+      await new Promise((resolve) => setTimeout(resolve, 800));
+    }
+    return false;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,13 +80,23 @@ function PaymentForm({ teamId, amount, onSuccess, onError }: { teamId: number; a
         }
       }
 
+      if (await waitForBackendInscription()) {
+        onSuccess();
+        setProcessing(false);
+        return;
+      }
+
       if (error) {
         onError(error.message || 'Error en el pagament');
       } else {
         onError('El pagament no s\'ha completat');
       }
     } catch {
-      onError('Error en processar el pagament');
+      if (await waitForBackendInscription()) {
+        onSuccess();
+      } else {
+        onError('Error en processar el pagament');
+      }
     } finally {
       setProcessing(false);
     }
@@ -106,6 +139,7 @@ export default function CapitaInscription() {
         const urlParams = new URLSearchParams(window.location.search);
         const redirectPiId = urlParams.get('payment_intent');
         const redirectStatus = urlParams.get('redirect_status');
+        const hasStripeRedirectIssue = Boolean(redirectPiId && redirectStatus && redirectStatus !== 'succeeded');
         if (redirectPiId && redirectStatus === 'succeeded') {
           const teamRes = await fetch(`${API_BASE_URL}/teams`, {
             headers: { 'Authorization': `Bearer ${token}` }
@@ -125,9 +159,6 @@ export default function CapitaInscription() {
               return;
             }
           }
-        } else if (redirectPiId && redirectStatus) {
-          window.history.replaceState({}, document.title, window.location.pathname);
-          setStripeError('El pagament no s ha completat. Torna-ho a provar.');
         }
 
         const response = await fetch(`${API_BASE_URL}/team/inscription-data`, {
@@ -136,6 +167,17 @@ export default function CapitaInscription() {
         if (response.ok) {
           const data = await response.json();
           setTeamData(data.teamData);
+          if (isInscribedStatus(data.teamData?.status)) {
+            window.history.replaceState({}, document.title, window.location.pathname);
+            setError(null);
+            setStripeError(null);
+            setPaymentComplete(true);
+            return;
+          }
+          if (hasStripeRedirectIssue) {
+            window.history.replaceState({}, document.title, window.location.pathname);
+            setStripeError('El pagament no s ha completat. Torna-ho a provar.');
+          }
           const teamRes = await fetch(`${API_BASE_URL}/teams`, {
             headers: { 'Authorization': `Bearer ${token}` }
           });
